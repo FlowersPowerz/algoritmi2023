@@ -3,7 +3,7 @@ package connectx;
 import java.util.List;
 import java.util.ArrayList;
 
-public class MyConnectXPlayer implements CXPlayer {
+public class ReadyPlayerOne implements CXPlayer {
     private int M, N, X;
     private boolean first;
     private int timeout_in_secs;
