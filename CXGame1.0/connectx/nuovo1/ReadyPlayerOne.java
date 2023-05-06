@@ -4,25 +4,26 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class ReadyPlayerOne implements CXPlayer {
-    private int M, N, X;
-    private boolean first;
-    private int timeout_in_secs;
-    private long startTime;
+	private int M, N, X;
+	private boolean first;
+	private int timeout_in_secs;
+	private long startTime;
+	private int maxDepth;
 
-    public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
-        this.M = M;
-        this.N = N;
-        this.X = X;
-        this.first = first;
-        this.timeout_in_secs = timeout_in_secs;
+	public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
+		this.M = M;
+		this.N = N;
+		this.X = X;
+		this.first = first;
+		this.timeout_in_secs = timeout_in_secs;
 		setMaxDepth();
-    }
+	}
 
 	public int selectColumn(CXBoard B) {
 		startTime = System.currentTimeMillis();
 		int bestMove = -1;
 		for (int depth = 1; !timeIsUp(); depth++) {
-        bestMove = iterativeDeepening(B, depth);
+			bestMove = iterativeDeepening(B, depth);
 		}
 		return bestMove;
 	}
@@ -31,21 +32,21 @@ public class ReadyPlayerOne implements CXPlayer {
 		List<Integer> availableColumns = board.getAvailableColumns();
 		int[] columnOrder = new int[availableColumns.size()];
 		Double[] columnValues = new Double[availableColumns.size()];
-    
+
 		for (int i = 0; i < availableColumns.size(); i++) {
 			int column = availableColumns.get(i);
 			CXBoard newBoard = board.copy();
 			newBoard.markColumn(column);
 			columnValues[i] = (double) evaluateBoard(newBoard);
-    }
-    
+		}
+
 		Integer[] columnIndices = IntStream.range(0, availableColumns.size()).boxed().toArray(Integer[]::new);
 		Arrays.sort(columnIndices, (a, b) -> Double.compare(columnValues[b], columnValues[a]));
-    
+
 		for (int i = 0; i < columnOrder.length; i++) {
 			columnOrder[i] = availableColumns.get(columnIndices[i]);
-    }
-    
+		}
+
 		return columnOrder;
 	}
 
@@ -61,63 +62,63 @@ public class ReadyPlayerOne implements CXPlayer {
 			if (value > bestValue) {
 				bestValue = value;
 				bestMove = col;
-				}
-				if (timeIsUp()) {
+			}
+			if (timeIsUp()) {
+				break;
+			}
+		}
+		return bestMove;
+	}
+
+	public String playerName() {
+		return "MyConnectXPlayer";
+	}
+
+	private int minimax(CXBoard board, int depth, boolean isMaximizing, int alpha, int beta, int maxDepth) {
+		if (depth >= maxDepth || timeIsUp()) {
+			return evaluateBoard(board);
+		}
+
+		CXGameState gameState = board.gameState();
+		if (gameState == CXGameState.WINP1 || gameState == CXGameState.WINP2) {
+			return isMaximizing ? -1 : 1;
+		} else if (gameState == CXGameState.DRAW) {
+			return 0;
+		}
+
+		if (isMaximizing) {
+			int bestValue = Integer.MIN_VALUE;
+			for (int col : board.getAvailableColumns()) {
+				CXBoard copy = board.copy();
+				copy.markColumn(col);
+				int value = minimax(copy, depth + 1, false, alpha, beta, maxDepth);
+				bestValue = Math.max(bestValue, value);
+				alpha = Math.max(alpha, bestValue);
+				if (beta <= alpha) {
 					break;
 				}
 			}
-		return bestMove;
-	}	
-	
-    public String playerName() {
-        return "MyConnectXPlayer";
-    }
+			return bestValue;
+		} else {
+			int bestValue = Integer.MAX_VALUE;
+			for (int col : board.getAvailableColumns()) {
+				CXBoard copy = board.copy();
+				copy.markColumn(col);
+				int value = minimax(copy, depth + 1, true, alpha, beta, maxDepth);
+				bestValue = Math.min(bestValue, value);
+				beta = Math.min(beta, bestValue);
+				if (beta <= alpha) {
+					break;
+				}
+			}
+			return bestValue;
+		}
+	}
 
-    private int minimax(CXBoard board, int depth, boolean isMaximizing, int alpha, int beta, int maxDepth) {
-        if (depth >= maxDepth || timeIsUp()) {
-            return evaluateBoard(board);
-        }
-
-        CXGameState gameState = board.gameState();
-        if (gameState == CXGameState.WINP1 || gameState == CXGameState.WINP2) {
-            return isMaximizing ? -1 : 1;
-        } else if (gameState == CXGameState.DRAW) {
-            return 0;
-        }
-
-        if (isMaximizing) {
-            int bestValue = Integer.MIN_VALUE;
-            for (int col : board.getAvailableColumns()) {
-                CXBoard copy = board.copy();
-                copy.markColumn(col);
-                int value = minimax(copy, depth + 1, false, alpha, beta, maxDepth);
-                bestValue = Math.max(bestValue, value);
-                alpha = Math.max(alpha, bestValue);
-                if (beta <= alpha) {
-                    break;
-                }
-            }
-            return bestValue;
-        } else {
-            int bestValue = Integer.MAX_VALUE;
-            for (int col : board.getAvailableColumns()) {
-                CXBoard copy = board.copy();
-                copy.markColumn(col);
-                int value = minimax(copy, depth + 1, true, alpha, beta, maxDepth);
-                bestValue = Math.min(bestValue, value);
-                beta = Math.min(beta, bestValue);
-                if (beta <= alpha) {
-                    break;
-                }
-            }
-            return bestValue;
-        }
-    }
-
-    private boolean timeIsUp() {
-        long elapsedTime = System.currentTimeMillis() - startTime;
-        return elapsedTime >= (timeout_in_secs - 1) * 1000;
-    }
+	private boolean timeIsUp() {
+		long elapsedTime = System.currentTimeMillis() - startTime;
+		return elapsedTime >= (timeout_in_secs - 1) * 1000;
+	}
 
 	private int evaluateBoard(CXBoard board) {
 		int score = 0;
@@ -128,7 +129,7 @@ public class ReadyPlayerOne implements CXPlayer {
 			for (int col = 0; col < N; col++) {
 				CXCellState cellState = board.cellState(row, col);
 				if (cellState != CXCellState.FREE) {
-					int cell = (cellState == CXCellState.PLAYER1) ? 1 : -1;
+					int cell = (cellState == CXCellState.P1) ? 1 : -1;
 					score += cell * positionValues[row][col];
 
 					for (int dr : DIRECTIONS) {
@@ -168,7 +169,14 @@ public class ReadyPlayerOne implements CXPlayer {
 		return score;
 	}
 
-	
+	private int[][] createPositionValuesMatrix() {
+		// Inizializza la matrice con i valori che ritieni appropriati per le posizioni
+		int[][] positionValues = new int[M][N];
+
+		// Aggiungi il tuo codice qui per popolare la matrice con i valori delle posizioni
+
+		return positionValues;
+	}
 
 	private void setMaxDepth() {
 		int gridSize = M * N;
