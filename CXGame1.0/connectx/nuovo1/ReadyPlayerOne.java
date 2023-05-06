@@ -2,6 +2,9 @@ package connectx;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.stream.IntStream;
 
 public class ReadyPlayerOne implements CXPlayer {
 	private int M, N, X;
@@ -28,23 +31,23 @@ public class ReadyPlayerOne implements CXPlayer {
 		return bestMove;
 	}
 
-	public int[] sortColumnsByHeuristic(CXBoard board, boolean maximizingPlayer) {
-		List<Integer> availableColumns = board.getAvailableColumns();
-		int[] columnOrder = new int[availableColumns.size()];
-		Double[] columnValues = new Double[availableColumns.size()];
+	public Integer[] sortColumnsByHeuristic(CXBoard board, boolean maximizingPlayer) {
+		Integer[] availableColumns = board.getAvailableColumns();
+		Integer[] columnOrder = new Integer[availableColumns.length];
+		Double[] columnValues = new Double[availableColumns.length];
 
-		for (int i = 0; i < availableColumns.size(); i++) {
-			int column = availableColumns.get(i);
+		for (int i = 0; i < availableColumns.length; i++) {
+			int column = availableColumns[i];
 			CXBoard newBoard = board.copy();
 			newBoard.markColumn(column);
 			columnValues[i] = (double) evaluateBoard(newBoard);
 		}
 
-		Integer[] columnIndices = IntStream.range(0, availableColumns.size()).boxed().toArray(Integer[]::new);
+		Integer[] columnIndices = IntStream.range(0, availableColumns.length).boxed().toArray(Integer[]::new);
 		Arrays.sort(columnIndices, (a, b) -> Double.compare(columnValues[b], columnValues[a]));
 
 		for (int i = 0; i < columnOrder.length; i++) {
-			columnOrder[i] = availableColumns.get(columnIndices[i]);
+			columnOrder[i] = availableColumns[columnIndices[i]];
 		}
 
 		return columnOrder;
@@ -53,7 +56,7 @@ public class ReadyPlayerOne implements CXPlayer {
 	private int iterativeDeepening(CXBoard B, int maxDepth) {
 		int bestValue = Integer.MIN_VALUE;
 		int bestMove = -1;
-		int[] columnOrder = sortColumnsByHeuristic(B, true);
+		Integer[] columnOrder = sortColumnsByHeuristic(B, true);
 
 		for (int col : columnOrder) {
 			CXBoard copy = B.copy();
