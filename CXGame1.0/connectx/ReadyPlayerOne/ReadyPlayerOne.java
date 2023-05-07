@@ -17,7 +17,6 @@ public class ReadyPlayerOne implements CXPlayer {
 	private boolean first;
 	private int timeout_in_secs;
 	private long startTime;
-	private int maxDepth;
 
 	public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
 		this.M = M;
@@ -25,7 +24,6 @@ public class ReadyPlayerOne implements CXPlayer {
 		this.X = X;
 		this.first = first;
 		this.timeout_in_secs = timeout_in_secs;
-		setMaxDepth();
 	}
 
 	public int selectColumn(CXBoard B) {
@@ -80,7 +78,7 @@ public class ReadyPlayerOne implements CXPlayer {
 	}
 
 	public String playerName() {
-		return "MyConnectXPlayer";
+		return "ReadyPlayerOne";
 	}
 
 	private int minimax(CXBoard board, int depth, boolean isMaximizing, int alpha, int beta, int maxDepth) {
@@ -194,19 +192,5 @@ public class ReadyPlayerOne implements CXPlayer {
 		return score;
 	}
 
-
-	private void setMaxDepth() {
-		int gridSize = M * N;
-		float cellsPerSecond = (float) gridSize / timeout_in_secs;
-		if (cellsPerSecond <= 2) {
-			maxDepth = 4;
-		} else if (cellsPerSecond <= 4) {
-			maxDepth = 6;
-		} else if (cellsPerSecond <= 8) {
-			maxDepth = 8;
-		} else {
-			maxDepth = 10;
-		}
-	}
 
 }
