@@ -1,12 +1,7 @@
-package connectx.Player;
+package connectx.ReadyPlayerOne;
 
 import connectx.CXPlayer;
-import connectx.CXBoard;
-import connectx.CXGameState;
-import connectx.CXCell;
-import connectx.CXCellState;
 
-import connectx.CXPlayer;
 import connectx.CXBoard;
 import connectx.CXGameState;
 import connectx.CXCell;
@@ -17,7 +12,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-public class Player implements CXPlayer {
+public class ReadyPlayerOne implements CXPlayer {
 	private int M, N, X;
 	private boolean first;
 	private int timeout_in_secs;
