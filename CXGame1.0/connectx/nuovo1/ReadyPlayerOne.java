@@ -1,10 +1,16 @@
 package connectx;
 
+import connectx.CXPlayer;
+import connectx.CXBoard;
+import connectx.CXGameState;
+import connectx.CXCell;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class ReadyPlayerOne implements CXPlayer {
 	private int M, N, X;
@@ -12,6 +18,7 @@ public class ReadyPlayerOne implements CXPlayer {
 	private int timeout_in_secs;
 	private long startTime;
 	private int maxDepth;
+	private HashMap<Long, Integer> memoization = new HashMap<Long, Integer>();
 
 	public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
 		this.M = M;
@@ -24,10 +31,8 @@ public class ReadyPlayerOne implements CXPlayer {
 
 	public int selectColumn(CXBoard B) {
 		startTime = System.currentTimeMillis();
-		int bestMove = -1;
-		for (int depth = 1; !timeIsUp(); depth++) {
-			bestMove = iterativeDeepening(B, depth);
-		}
+		memoization.clear();
+		int bestMove = iterativeDeepening(B, getMaxDepth(B));
 		return bestMove;
 	}
 
@@ -73,11 +78,13 @@ public class ReadyPlayerOne implements CXPlayer {
 		return bestMove;
 	}
 
-	public String playerName() {
-		return "MyConnectXPlayer";
-	}
 
 	private int minimax(CXBoard board, int depth, boolean isMaximizing, int alpha, int beta, int maxDepth) {
+		long id = boardHash(board);
+		if (memoization.containsKey(id)) {
+			return memoization.get(id);
+		}
+
 		if (depth >= maxDepth || timeIsUp()) {
 			return evaluateBoard(board);
 		}
@@ -101,6 +108,7 @@ public class ReadyPlayerOne implements CXPlayer {
 					break;
 				}
 			}
+			memoization.put(id, bestValue);
 			return bestValue;
 		} else {
 			int bestValue = Integer.MAX_VALUE;
@@ -114,13 +122,51 @@ public class ReadyPlayerOne implements CXPlayer {
 					break;
 				}
 			}
+			memoization.put(id, bestValue);
 			return bestValue;
 		}
+	}
+
+	private long boardHash(CXBoard board) {
+		long hash = 0;
+		long prime = 31;
+		for (int row = 0; row < M; row++) {
+			for (int col = 0; col < N; col++) {
+				int cellValue = 0;
+				CXCellState cellState = board.cellState(row, col);
+				switch (cellState) {
+					case P1:
+						cellValue = 1;
+						break;
+					case P2:
+						cellValue = 2;
+						break;
+				}
+				hash = hash * prime + row * prime + col * prime + cellValue;
+			}
+		}
+		return hash;
 	}
 
 	private boolean timeIsUp() {
 		long elapsedTime = System.currentTimeMillis() - startTime;
 		return elapsedTime >= (timeout_in_secs - 1) * 1000;
+	}
+
+	private int[][] createPositionValuesMatrix() {
+		int[][] positionValues = new int[M][N];
+		int maxDistance = (M + N) / 2;
+
+		for (int row = 0; row < M; row++) {
+			for (int col = 0; col < N; col++) {
+				int distanceRow = Math.min(row, M - 1 - row);
+				int distanceCol = Math.min(col, N - 1 - col);
+				int distance = Math.min(distanceRow, distanceCol);
+				positionValues[row][col] = maxDistance - distance;
+			}
+		}
+
+		return positionValues;
 	}
 
 	private int evaluateBoard(CXBoard board) {
@@ -172,14 +218,23 @@ public class ReadyPlayerOne implements CXPlayer {
 		return score;
 	}
 
-	private int[][] createPositionValuesMatrix() {
-		// Inizializza la matrice con i valori che ritieni appropriati per le posizioni
-		int[][] positionValues = new int[M][N];
+	private int getMaxDepth(CXBoard board) {
+		int gridSize = M * N;
+		int freeCells = gridSize - board.numOfMarkedCells();
+		double ratio = (double) freeCells / gridSize;
 
-		// Aggiungi il tuo codice qui per popolare la matrice con i valori delle posizioni
-
-		return positionValues;
+		if (ratio < 0.25) {
+			return 12;
+		} else if (ratio < 0.5) {
+			return 10;
+		} else if (ratio < 0.75) {
+			return 8;
+		} else {
+			return 6;
+		}
 	}
+
+
 
 	private void setMaxDepth() {
 		int gridSize = M * N;
@@ -194,4 +249,13 @@ public class ReadyPlayerOne implements CXPlayer {
 			maxDepth = 10;
 		}
 	}
+
+	@Override
+	public String playerName() {
+		return "ReadyPlayerOne";
+	}
+
+
 }
+
+
