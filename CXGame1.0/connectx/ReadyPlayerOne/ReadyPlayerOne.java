@@ -1,24 +1,28 @@
-package connectx;
+package connectx.Player;
 
 import connectx.CXPlayer;
 import connectx.CXBoard;
 import connectx.CXGameState;
 import connectx.CXCell;
+import connectx.CXCellState;
+
+import connectx.CXPlayer;
+import connectx.CXBoard;
+import connectx.CXGameState;
+import connectx.CXCell;
+import connectx.CXCellState;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-public class ReadyPlayerOne implements CXPlayer {
+public class Player implements CXPlayer {
 	private int M, N, X;
 	private boolean first;
 	private int timeout_in_secs;
 	private long startTime;
 	private int maxDepth;
-	private HashMap<Long, Integer> memoization = new HashMap<Long, Integer>();
 
 	public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
 		this.M = M;
@@ -31,8 +35,10 @@ public class ReadyPlayerOne implements CXPlayer {
 
 	public int selectColumn(CXBoard B) {
 		startTime = System.currentTimeMillis();
-		memoization.clear();
-		int bestMove = iterativeDeepening(B, getMaxDepth(B));
+		int bestMove = -1;
+		for (int depth = 1; !timeIsUp(); depth++) {
+			bestMove = iterativeDeepening(B, depth);
+		}
 		return bestMove;
 	}
 
@@ -78,13 +84,11 @@ public class ReadyPlayerOne implements CXPlayer {
 		return bestMove;
 	}
 
+	public String playerName() {
+		return "MyConnectXPlayer";
+	}
 
 	private int minimax(CXBoard board, int depth, boolean isMaximizing, int alpha, int beta, int maxDepth) {
-		long id = boardHash(board);
-		if (memoization.containsKey(id)) {
-			return memoization.get(id);
-		}
-
 		if (depth >= maxDepth || timeIsUp()) {
 			return evaluateBoard(board);
 		}
@@ -108,7 +112,6 @@ public class ReadyPlayerOne implements CXPlayer {
 					break;
 				}
 			}
-			memoization.put(id, bestValue);
 			return bestValue;
 		} else {
 			int bestValue = Integer.MAX_VALUE;
@@ -122,30 +125,8 @@ public class ReadyPlayerOne implements CXPlayer {
 					break;
 				}
 			}
-			memoization.put(id, bestValue);
 			return bestValue;
 		}
-	}
-
-	private long boardHash(CXBoard board) {
-		long hash = 0;
-		long prime = 31;
-		for (int row = 0; row < M; row++) {
-			for (int col = 0; col < N; col++) {
-				int cellValue = 0;
-				CXCellState cellState = board.cellState(row, col);
-				switch (cellState) {
-					case P1:
-						cellValue = 1;
-						break;
-					case P2:
-						cellValue = 2;
-						break;
-				}
-				hash = hash * prime + row * prime + col * prime + cellValue;
-			}
-		}
-		return hash;
 	}
 
 	private boolean timeIsUp() {
@@ -218,23 +199,6 @@ public class ReadyPlayerOne implements CXPlayer {
 		return score;
 	}
 
-	private int getMaxDepth(CXBoard board) {
-		int gridSize = M * N;
-		int freeCells = gridSize - board.numOfMarkedCells();
-		double ratio = (double) freeCells / gridSize;
-
-		if (ratio < 0.25) {
-			return 12;
-		} else if (ratio < 0.5) {
-			return 10;
-		} else if (ratio < 0.75) {
-			return 8;
-		} else {
-			return 6;
-		}
-	}
-
-
 
 	private void setMaxDepth() {
 		int gridSize = M * N;
@@ -250,12 +214,4 @@ public class ReadyPlayerOne implements CXPlayer {
 		}
 	}
 
-	@Override
-	public String playerName() {
-		return "ReadyPlayerOne";
-	}
-
-
 }
-
-
