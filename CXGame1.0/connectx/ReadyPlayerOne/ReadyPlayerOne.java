@@ -13,24 +13,26 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 public class ReadyPlayerOne implements CXPlayer {
-	private int M, N, X;
-	private boolean first;
+	private int ROWS_M, COLUMNS_N, TO_CONNECT_X; //M rows, N columns, connect X
+	private boolean first; //who am i?
 	private int timeout_in_secs;
 	private long startTime;
 
+	//constructor
 	public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
-		this.M = M;
-		this.N = N;
-		this.X = X;
+		this.ROWS_M = M;
+		this.COLUMNS_N = N;
+		this.TO_CONNECT_X = X;
 		this.first = first;
 		this.timeout_in_secs = timeout_in_secs;
 	}
 
-	public int selectColumn(CXBoard B) {
+	//"main function" we need to implement
+	public int selectColumn(CXBoard Board) {
 		startTime = System.currentTimeMillis();
 		int bestMove = -1;
 		for (int depth = 1; !timeIsUp(); depth++) {
-			bestMove = iterativeDeepening(B, depth);
+			bestMove = iterativeDeepening(Board, depth);
 		}
 		return bestMove;
 	}
@@ -56,16 +58,27 @@ public class ReadyPlayerOne implements CXPlayer {
 
 		return columnOrder;
 	}
+/*
+* function IterativeDeepening(Node T , bool playerA, int depth) → int
 
-	private int iterativeDeepening(CXBoard B, int maxDepth) {
+α = MinAlpha
+β = MaxBeta
+eval = 0
+for d = 0, · · · , depth do
+if time is running out() then break
+eval =AlphaBeta(T , playerA,α,β,d)
+return eval
+*/
+	private int iterativeDeepening(CXBoard Board) {
+		//TODO
 		int bestValue = Integer.MIN_VALUE;
 		int bestMove = -1;
-		Integer[] columnOrder = sortColumnsByHeuristic(B, true);
+		Integer[] columnOrder = sortColumnsByHeuristic(Board, true);
 
 		for (int col : columnOrder) {
-			CXBoard copy = B.copy();
+			CXBoard copy = Board.copy();
 			copy.markColumn(col);
-			int value = minimax(copy, 0, false, Integer.MIN_VALUE, Integer.MAX_VALUE, maxDepth);
+			int value = minimax(copy, 0, false, Integer.MIN_VALUE, Integer.MAX_VALUE);
 			if (value > bestValue) {
 				bestValue = value;
 				bestMove = col;
@@ -81,45 +94,35 @@ public class ReadyPlayerOne implements CXPlayer {
 		return "ReadyPlayerOne";
 	}
 
-	private int minimax(CXBoard board, int depth, boolean isMaximizing, int alpha, int beta, int maxDepth) {
-		if (depth >= maxDepth || timeIsUp()) {
+	private int minimax(CXBoard board, int depth, boolean isMinimizing, int alpha, int beta) {
+		if ( timeIsUp()) {
 			return evaluateBoard(board);
 		}
 
 		CXGameState gameState = board.gameState();
 		if (gameState == CXGameState.WINP1 || gameState == CXGameState.WINP2) {
-			return isMaximizing ? -1 : 1;
+			return isMinimizing ? 1 : -1;
 		} else if (gameState == CXGameState.DRAW) {
 			return 0;
 		}
 
-		if (isMaximizing) {
-			int bestValue = Integer.MIN_VALUE;
-			for (int col : board.getAvailableColumns()) {
-				CXBoard copy = board.copy();
-				copy.markColumn(col);
-				int value = minimax(copy, depth + 1, false, alpha, beta, maxDepth);
+		int bestValue = Integer.MIN_VALUE;
+		for (int col : board.getAvailableColumns()) {
+			CXBoard copy = board.copy();
+			copy.markColumn(col);
+			int value = minimax(copy, depth + 1, isMinimizing, alpha, beta );
+			if(isMinimizing) {
 				bestValue = Math.max(bestValue, value);
 				alpha = Math.max(alpha, bestValue);
-				if (beta <= alpha) {
-					break;
-				}
-			}
-			return bestValue;
-		} else {
-			int bestValue = Integer.MAX_VALUE;
-			for (int col : board.getAvailableColumns()) {
-				CXBoard copy = board.copy();
-				copy.markColumn(col);
-				int value = minimax(copy, depth + 1, true, alpha, beta, maxDepth);
+			} else {
 				bestValue = Math.min(bestValue, value);
 				beta = Math.min(beta, bestValue);
-				if (beta <= alpha) {
-					break;
-				}
 			}
-			return bestValue;
+			if (beta <= alpha) {
+				break;
+			}
 		}
+		return bestValue;
 	}
 
 	private boolean timeIsUp() {
@@ -127,14 +130,15 @@ public class ReadyPlayerOne implements CXPlayer {
 		return elapsedTime >= (timeout_in_secs - 1) * 1000;
 	}
 
+	// ???
 	private int[][] createPositionValuesMatrix() {
-		int[][] positionValues = new int[M][N];
-		int maxDistance = (M + N) / 2;
+		int[][] positionValues = new int[ROWS_M][COLUMNS_N];
+		int maxDistance = (ROWS_M + COLUMNS_N) / 2;
 
-		for (int row = 0; row < M; row++) {
-			for (int col = 0; col < N; col++) {
-				int distanceRow = Math.min(row, M - 1 - row);
-				int distanceCol = Math.min(col, N - 1 - col);
+		for (int row = 0; row < ROWS_M; row++) {
+			for (int col = 0; col < COLUMNS_N; col++) {
+				int distanceRow = Math.min(row, ROWS_M - 1 - row);
+				int distanceCol = Math.min(col, COLUMNS_N - 1 - col);
 				int distance = Math.min(distanceRow, distanceCol);
 				positionValues[row][col] = maxDistance - distance;
 			}
@@ -148,8 +152,8 @@ public class ReadyPlayerOne implements CXPlayer {
 		final int[] DIRECTIONS = {-1, 0, 1};
 		int[][] positionValues = createPositionValuesMatrix();
 
-		for (int row = 0; row < M; row++) {
-			for (int col = 0; col < N; col++) {
+		for (int row = 0; row < ROWS_M; row++) {
+			for (int col = 0; col < COLUMNS_N; col++) {
 				CXCellState cellState = board.cellState(row, col);
 				if (cellState != CXCellState.FREE) {
 					int cell = (cellState == CXCellState.P1) ? 1 : -1;
@@ -161,25 +165,25 @@ public class ReadyPlayerOne implements CXPlayer {
 								int countConsecutive = 1;
 								int countOpenEnds = 0;
 
-								int r = row + dr;
-								int c = col + dc;
-								while (r >= 0 && r < M && c >= 0 && c < N && board.cellState(r, c) == cellState) {
+								int r = row + dr; //direzione per le righe
+								int c = col + dc; //direzione per le colonne
+								while (r >= 0 && r < ROWS_M && c >= 0 && c < COLUMNS_N && board.cellState(r, c) == cellState) {
 									countConsecutive++;
 									r += dr;
 									c += dc;
 								}
-								if (r >= 0 && r < M && c >= 0 && c < N && board.cellState(r, c) == CXCellState.FREE) {
+								if (r >= 0 && r < ROWS_M && c >= 0 && c < COLUMNS_N && board.cellState(r, c) == CXCellState.FREE) {
 									countOpenEnds++;
 								}
 
 								int scoreFactor = (cell == 1) ? 1 : -1;
-								if (countConsecutive >= X) {
+								if (countConsecutive >= TO_CONNECT_X) {
 									return countConsecutive * 1000 * scoreFactor;
-								} else if (countConsecutive == X - 1 && countOpenEnds > 0) {
+								} else if (countConsecutive == TO_CONNECT_X - 1 && countOpenEnds > 0) {
 									score += 100 * scoreFactor;
-								} else if (countConsecutive == X - 2) {
+								} else if (countConsecutive == TO_CONNECT_X - 2) {
 									score += 10 * scoreFactor;
-								} else if (countConsecutive == X - 3) {
+								} else if (countConsecutive == TO_CONNECT_X - 3) {
 									score += 2 * scoreFactor;
 								}
 							}
