@@ -130,16 +130,24 @@ return eval
 		return elapsedTime >= (timeout_in_secs - 1) * 1000;
 	}
 
+	//commented by chatgpt
 	// ???
 	private int[][] createPositionValuesMatrix() {
+		// Creazione di una matrice 6x7 di interi
 		int[][] positionValues = new int[ROWS_M][COLUMNS_N];
+		// Calcolo della massima distanza possibile da una cella sulla griglia
 		int maxDistance = (ROWS_M + COLUMNS_N) / 2;
 
+		// Ciclo attraverso ogni riga e colonna sulla griglia di gioco
 		for (int row = 0; row < ROWS_M; row++) {
 			for (int col = 0; col < COLUMNS_N; col++) {
+				// Calcolo della distanza minima dalla riga corrente e dalla riga opposta
 				int distanceRow = Math.min(row, ROWS_M - 1 - row);
+				// Calcolo della distanza minima dalla colonna corrente e dalla colonna opposta
 				int distanceCol = Math.min(col, COLUMNS_N - 1 - col);
+				// Calcolo della distanza minima tra le due distanze calcolate in precedenza
 				int distance = Math.min(distanceRow, distanceCol);
+				// Assegnazione del valore della posizione corrente nella matrice di posizioni
 				positionValues[row][col] = maxDistance - distance;
 			}
 		}
@@ -148,25 +156,37 @@ return eval
 	}
 
 	private int evaluateBoard(CXBoard board) {
+		// Inizializzazione del punteggio a 0
 		int score = 0;
+		// Definizione delle possibili direzioni di allineamento delle pedine
 		final int[] DIRECTIONS = {-1, 0, 1};
+		// Creazione della matrice di valori di posizione
 		int[][] positionValues = createPositionValuesMatrix();
 
+		// Ciclo attraverso ogni riga e colonna sulla griglia di gioco
 		for (int row = 0; row < ROWS_M; row++) {
 			for (int col = 0; col < COLUMNS_N; col++) {
+				// Ottengo lo stato della cella corrente
 				CXCellState cellState = board.cellState(row, col);
+				// Se la cella non è vuota
 				if (cellState != CXCellState.FREE) {
+					// Assegno il valore 1 se la pedina è del giocatore 1, altrimenti -1
 					int cell = (cellState == CXCellState.P1) ? 1 : -1;
+					// Aggiungo il valore della posizione della cella al punteggio totale
 					score += cell * positionValues[row][col];
 
+					// Ciclo attraverso le possibili direzioni di allineamento delle pedine
+					// Controllo se ci sono linee di pedine dello stesso colore
 					for (int dr : DIRECTIONS) {
 						for (int dc : DIRECTIONS) {
 							if (dr != 0 || dc != 0) {
+								// Seleziono una direzione diversa da quella attuale
 								int countConsecutive = 1;
 								int countOpenEnds = 0;
 
-								int r = row + dr; //direzione per le righe
-								int c = col + dc; //direzione per le colonne
+								// Scorro le celle lungo la direzione selezionata
+								int r = row + dr;
+								int c = col + dc;
 								while (r >= 0 && r < ROWS_M && c >= 0 && c < COLUMNS_N && board.cellState(r, c) == cellState) {
 									countConsecutive++;
 									r += dr;
@@ -177,6 +197,7 @@ return eval
 								}
 
 								int scoreFactor = (cell == 1) ? 1 : -1;
+								// Assegno uno score in base al numero di pedine dello stesso colore consecutive
 								if (countConsecutive >= TO_CONNECT_X) {
 									return countConsecutive * 1000 * scoreFactor;
 								} else if (countConsecutive == TO_CONNECT_X - 1 && countOpenEnds > 0) {
@@ -192,9 +213,8 @@ return eval
 				}
 			}
 		}
-
-		return score;
 	}
+
 
 
 }
