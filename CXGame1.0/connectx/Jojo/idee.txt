@@ -97,3 +97,43 @@ perché non ci sarebbero abbastanza righe rimanenti sotto per formare una linea 
 
 In sostanza, "M - X + 1" e "N - X + 1" ti assicurano di non cercare sequenze di X gettoni in posizioni
 in cui non potrebbero esistere a causa delle dimensioni della griglia di gioco.
+
+
+public int selectColumn(CXBoard tabellone) {
+    int colonnaMigliore = -1;
+    double punteggioMigliore = Double.NEGATIVE_INFINITY;
+
+    long tempoLimite = System.currentTimeMillis() + timeout_in_secs * 1000;
+
+    for (int profondita = 1; System.currentTimeMillis() < tempoLimite; profondita++) {
+        for (int colonna : tabellone.getAvailableColumns()) {
+            double punteggio = ricercaIterativeDeepening(tabellone.copy(), colonna, profondita, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, tempoLimite);
+            if (punteggio > punteggioMigliore) {
+                punteggioMigliore = punteggio;
+                colonnaMigliore = colonna;
+            }
+        }
+    }
+
+    return colonnaMigliore;
+}
+
+private double ricercaIterativeDeepening(CXBoard tabellone, int colonna, int profondita, double alfa, double beta, long tempoLimite) {
+    if (System.currentTimeMillis() >= tempoLimite || profondita == 0 || tabellone.gameState() != CXGameState.OPEN) {
+        return valutaTabellone(tabellone);
+    }
+
+    tabellone.markColumn(colonna);
+
+    double punteggioMax = Double.NEGATIVE_INFINITY;
+    for (int col : tabellone.getAvailableColumns()) {
+        double punteggio = -ricercaIterativeDeepening(tabellone.copy(), col, profondita - 1, -beta, -alfa, tempoLimite);
+        punteggioMax = Math.max(punteggioMax, punteggio);
+        alfa = Math.max(alfa, punteggio);
+        if (alfa >= beta) {
+            break;
+        }
+    }
+
+    return punteggioMax;
+}
