@@ -1,54 +1,55 @@
-private int evaluateBoard(CXBoard B) {
-    int score = 0;
+private int valutaTabellone(CXBoard tabellone) {
+    int punteggio = 0;
 
     // Valuta le righe
-    for (int i = 0; i < M; i++) {
-        for (int j = 0; j < N - X + 1; j++) {
-            score += evaluateSegment(B, i, j, 0, 1);  // orizzontale
+    for (int riga = 0; riga < M; riga++) {
+        for (int colonna = 0; colonna < N - X + 1; colonna++) {
+            punteggio += valutaSegmento(tabellone, riga, colonna, 0, 1);  // orizzontale
         }
     }
 
     // Valuta le colonne
-    for (int j = 0; j < N; j++) {
-        for (int i = 0; i < M - X + 1; i++) {
-            score += evaluateSegment(B, i, j, 1, 0);  // verticale
+    for (int colonna = 0; colonna < N; colonna++) {
+        for (int riga = 0; riga < M - X + 1; riga++) {
+            punteggio += valutaSegmento(tabellone, riga, colonna, 1, 0);  // verticale
         }
     }
 
     // Valuta le diagonali (da sinistra a destra)
-    for (int i = 0; i < M - X + 1; i++) {
-        for (int j = 0; j < N - X + 1; j++) {
-            score += evaluateSegment(B, i, j, 1, 1);  // diagonale
+    for (int riga = 0; riga < M - X + 1; riga++) {
+        for (int colonna = 0; colonna < N - X + 1; colonna++) {
+            punteggio += valutaSegmento(tabellone, riga, colonna, 1, 1);  // diagonale
         }
     }
 
     // Valuta le diagonali (da destra a sinistra)
-    for (int i = X - 1; i < M; i++) {
-        for (int j = 0; j < N - X + 1; j++) {
-            score += evaluateSegment(B, i, j, -1, 1);  // diagonale
+    for (int riga = X - 1; riga < M; riga++) {
+        for (int colonna = 0; colonna < N - X + 1; colonna++) {
+            punteggio += valutaSegmento(tabellone, riga, colonna, -1, 1);  // diagonale
         }
     }
 
-    return score;
+    return punteggio;
 }
 
-private int evaluateSegment(CXBoard B, int i, int j, int di, int dj) {
-    int score = 0;
+private int valutaSegmento(CXBoard tabellone, int rigaInizio, int colonnaInizio, int incrementoRiga, int incrementoColonna) {
+    int punteggio = 0;
 
     // Controlla i seguenti X gettoni
     for (int k = 0; k < X; k++) {
-        CXCellState cell = B.cellState(i + k*di, j + k*dj);
+        CXCellState cella = tabellone.cellState(rigaInizio + k*incrementoRiga, colonnaInizio + k*incrementoColonna);
 
         // Aggiungi al punteggio in base allo stato della cella
-        if (cell == CXCellState.ME) {
-            score += 1;  // o qualunque sia la tua euristica
-        } else if (cell == CXCellState.OPPONENT) {
-            score -= 1;  // o qualunque sia la tua euristica
+        if (cella == CXCellState.ME) {
+            punteggio += 1;  // o qualunque sia la tua euristica
+        } else if (cella == CXCellState.OPPONENT) {
+            punteggio -= 1;  // o qualunque sia la tua euristica
         }
     }
 
-    return score;
+    return punteggio;
 }
+
 
 @Override
 public int selectColumn(CXBoard B) {
@@ -80,3 +81,19 @@ public int selectColumn(CXBoard B) {
 
     return bestCol;
 }
+
+
+"M - X + 1" e "N - X + 1" sono usati per determinare il limite superiore per i cicli di valutazione delle righe,
+colonne e diagonali.
+
+Ricorda che l'obiettivo del gioco Connect X è di allineare X gettoni in una fila. Quindi, se stai cercando
+di valutare una possibile sequenza di X gettoni in una riga,
+non ha senso iniziare a cercare in una colonna che sia più lontana da "N - X + 1",
+perché non ci sarebbero abbastanza colonne rimanenti per formare una linea di X gettoni.
+
+Lo stesso vale per la valutazione delle colonne e delle diagonali.
+Non iniziare a cercare in una riga che sia più in basso di "M - X + 1",
+perché non ci sarebbero abbastanza righe rimanenti sotto per formare una linea di X gettoni.
+
+In sostanza, "M - X + 1" e "N - X + 1" ti assicurano di non cercare sequenze di X gettoni in posizioni
+in cui non potrebbero esistere a causa delle dimensioni della griglia di gioco.
