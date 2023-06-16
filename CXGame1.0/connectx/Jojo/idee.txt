@@ -1,0 +1,82 @@
+private int evaluateBoard(CXBoard B) {
+    int score = 0;
+
+    // Valuta le righe
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N - X + 1; j++) {
+            score += evaluateSegment(B, i, j, 0, 1);  // orizzontale
+        }
+    }
+
+    // Valuta le colonne
+    for (int j = 0; j < N; j++) {
+        for (int i = 0; i < M - X + 1; i++) {
+            score += evaluateSegment(B, i, j, 1, 0);  // verticale
+        }
+    }
+
+    // Valuta le diagonali (da sinistra a destra)
+    for (int i = 0; i < M - X + 1; i++) {
+        for (int j = 0; j < N - X + 1; j++) {
+            score += evaluateSegment(B, i, j, 1, 1);  // diagonale
+        }
+    }
+
+    // Valuta le diagonali (da destra a sinistra)
+    for (int i = X - 1; i < M; i++) {
+        for (int j = 0; j < N - X + 1; j++) {
+            score += evaluateSegment(B, i, j, -1, 1);  // diagonale
+        }
+    }
+
+    return score;
+}
+
+private int evaluateSegment(CXBoard B, int i, int j, int di, int dj) {
+    int score = 0;
+
+    // Controlla i seguenti X gettoni
+    for (int k = 0; k < X; k++) {
+        CXCellState cell = B.cellState(i + k*di, j + k*dj);
+
+        // Aggiungi al punteggio in base allo stato della cella
+        if (cell == CXCellState.ME) {
+            score += 1;  // o qualunque sia la tua euristica
+        } else if (cell == CXCellState.OPPONENT) {
+            score -= 1;  // o qualunque sia la tua euristica
+        }
+    }
+
+    return score;
+}
+
+@Override
+public int selectColumn(CXBoard B) {
+    // Prepara una lista per memorizzare i punteggi delle colonne
+    int[] scores = new int[N];
+    for (int col = 0; col < N; col++) {
+        if (!B.fullColumn(col)) {
+            // Simula la mossa nella colonna
+            B.markColumn(col);
+            // Valuta la mossa
+            scores[col] = evaluateBoard(B);
+            // Annulla la mossa simulata
+            B.unmarkColumn();
+        } else {
+            // Se la colonna è piena, assegna un punteggio molto basso
+            scores[col] = Integer.MIN_VALUE;
+        }
+    }
+
+    // Scegli la colonna con il punteggio più alto
+    int bestCol = 0;
+    int bestScore = scores[0];
+    for (int col = 1; col < N; col++) {
+        if (scores[col] > bestScore) {
+            bestScore = scores[col];
+            bestCol = col;
+        }
+    }
+
+    return bestCol;
+}

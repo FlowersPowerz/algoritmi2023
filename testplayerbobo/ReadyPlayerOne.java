@@ -32,7 +32,7 @@ public class ReadyPlayerOne implements CXPlayer {
 		startTime = System.currentTimeMillis();
 		int bestMove = -1;
 		for (int depth = 1; !timeIsUp(); depth++) {
-			bestMove = iterativeDeepening(Board, depth);
+			bestMove = iterativeDeepening(Board);
 		}
 		return bestMove;
 	}
@@ -214,7 +214,4 @@ return eval
 			}
 		}
 	}
-
-
-
 }
