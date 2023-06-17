@@ -137,3 +137,118 @@ private double ricercaIterativeDeepening(CXBoard tabellone, int colonna, int pro
 
     return punteggioMax;
 }
+
+utilizza i metodi di CXBoard
+
+Certo, puoi utilizzare questi metodi per adattare l'implementazione di `selectColumn` e `ricercaIterativeDeepening`.
+Ho considerato l'utilizzo di `markColumn`, `unmarkColumn`, `getAvailableColumns` e `gameState`. Ecco il codice modificato:
+
+```java
+public int selectColumn(CXBoard tabellone) {
+    int colonnaMigliore = -1;
+    double punteggioMigliore = Double.NEGATIVE_INFINITY;
+
+    long tempoLimite = System.currentTimeMillis() + timeout_in_secs * 1000;
+
+    for (int profondita = 1; System.currentTimeMillis() < tempoLimite; profondita++) {
+        for (int colonna : tabellone.getAvailableColumns()) {
+            tabellone.markColumn(colonna);
+            double punteggio = ricercaIterativeDeepening(tabellone, profondita, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, tempoLimite);
+            tabellone.unmarkColumn();
+            if (punteggio > punteggioMigliore) {
+                punteggioMigliore = punteggio;
+                colonnaMigliore = colonna;
+            }
+        }
+    }
+
+    return colonnaMigliore;
+}
+
+private double ricercaIterativeDeepening(CXBoard tabellone, int profondita, double alfa, double beta, long tempoLimite) {
+    if (System.currentTimeMillis() >= tempoLimite || profondita == 0 || tabellone.gameState() != CXGameState.OPEN) {
+        return valutaTabellone(tabellone);
+    }
+
+    double punteggioMax = Double.NEGATIVE_INFINITY;
+    for (int col : tabellone.getAvailableColumns()) {
+        tabellone.markColumn(col);
+        double punteggio = -ricercaIterativeDeepening(tabellone, profondita - 1, -beta, -alfa, tempoLimite);
+        tabellone.unmarkColumn();
+        punteggioMax = Math.max(punteggioMax, punteggio);
+        alfa = Math.max(alfa, punteggio);
+        if (alfa >= beta) {
+            break;
+        }
+    }
+
+    return punteggioMax;
+}
+```
+
+Nota che ora, in entrambi i metodi, la tabella del gioco viene modificata e poi ripristinata utilizzando i metodi `markColumn` e `unmarkColumn`.
+Questo è necessario per eseguire la simulazione di ogni mossa possibile e poi ripristinare lo stato del gioco alla sua condizione originale.
+Inoltre, il metodo `gameState` viene utilizzato per verificare se la partita è ancora aperta prima di valutare il tabellone.
+
+Naturalmente, l'implementazione esatta di `valutaTabellone` dipenderà da come scegli di valutare lo stato del gioco.
+Di seguito, troverai un esempio generico che utilizza alcuni dei metodi disponibili.
+In questo esempio, se il giocatore ha vinto, la funzione ritorna un valore positivo infinito.
+Se l'avversario ha vinto, ritorna un valore negativo infinito. Se il gioco è ancora in corso,
+il punteggio è calcolato come la differenza tra il numero di celle marcate dal giocatore
+e il numero di celle marcate dall'avversario.
+
+```java
+private double valutaTabellone(CXBoard tabellone) {
+    CXGameState statoGioco = tabellone.gameState();
+    if (statoGioco == CXGameState.WIN1 && primoGiocatore) {
+        return Double.POSITIVE_INFINITY;
+    } else if (statoGioco == CXGameState.WIN2 && !primoGiocatore) {
+        return Double.POSITIVE_INFINITY;
+    } else if (statoGioco == CXGameState.WIN1 || statoGioco == CXGameState.WIN2) {
+        return Double.NEGATIVE_INFINITY;
+    } else {
+        int gettoniGiocatore = 0;
+        int gettoniAvversario = 0;
+        CXCell[] celleMarcati = tabellone.getMarkedCells();
+        for (CXCell cella : celleMarcati) {
+            if (cella.player() == (primoGiocatore ? 1 : 2)) {
+                gettoniGiocatore++;
+            } else {
+                gettoniAvversario++;
+            }
+        }
+        return gettoniGiocatore - gettoniAvversario;
+    }
+}
+```
+
+In questo esempio, ho supposto che la variabile `primoGiocatore`
+sia un campo della classe che indica se il giocatore di software è il primo a giocare.
+Ho utilizzato il metodo `getMarkedCells` per contare il numero di gettoni marcati da ciascun giocatore.
+
+Ricorda, questo è solo un esempio generico.
+Come scegli di valutare il tabellone dovrebbe dipendere dalla tua specifica strategia di gioco.
+Potresti voler considerare altri fattori, come la possibilità di creare o bloccare sequenze di X gettoni.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
