@@ -1,69 +1,107 @@
 package connectx.Jojo;
 import java.io.*;
+import java.util.Random;
 import connectx.CXPlayer;
 import connectx.CXBoard;
-import connectx.CXCellState;
 import connectx.CXGameState;
+import connectx.CXCell;
 
 public class Jojo implements CXPlayer {
-
-    // variabili di istanza
-    private int M;
-    private int N;
-    private int X;
-    private boolean first;
-    private int timeout;
-    public Jojo (){};
+    private int numeroRighe;
+    private int numeroColonne;
+    private int numeroGettoni;
+    private boolean primoGiocatore;
+    private int timeout_in_secs;
+    private int giocatore;
+public Jojo(){};
 
     @Override
     public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
-        this.M = M;
-        this.N = N;
-        this.X = X;
-        this.first = first;
-        this.timeout = timeout_in_secs;
+        this.numeroRighe = M;
+        this.numeroColonne = N;
+        this.numeroGettoni = X;
+        this.primoGiocatore = first;
+        this.timeout_in_secs = timeout_in_secs;
+        this.giocatore = first ? 1 : 2;
     }
 
     @Override
-    public int selectColumn(CXBoard B) {
-        // qui implementerai l'algoritmo per la scelta della colonna
-        System.err.println("not implemented");
-        // Prepara una lista per memorizzare i punteggi delle colonne
-        int[] scores = new int[N];
-        for (int col = 0; col < N; col++) {
-            if (!B.fullColumn(col)) {
-                // Simula la mossa nella colonna
-                B.markColumn(col);
-                // Valuta la mossa
-                scores[col] = evaluateBoard(B);
-                // Annulla la mossa simulata
-                B.unmarkColumn();
-            } else {
-                // Se la colonna è piena, assegna un punteggio molto basso
-                scores[col] = Integer.MIN_VALUE;
+    public int selectColumn(CXBoard tabellone) {
+        Integer[] colonneDisponibili = tabellone.getAvailableColumns();
+        int colonnaMigliore = colonneDisponibili[new Random().nextInt(colonneDisponibili.length)];  // inizializzazione casuale
+        double punteggioMigliore = Double.NEGATIVE_INFINITY;
+        long tempoLimite = System.currentTimeMillis() + this.timeout_in_secs * 1000;
+
+        for (int profondita = 1; System.currentTimeMillis() < tempoLimite; profondita++) {
+            for (int colonna : colonneDisponibili) {
+                tabellone.markColumn(colonna);
+                double punteggio = ricercaIterativeDeepening(tabellone, profondita, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, tempoLimite, false);
+                tabellone.unmarkColumn();
+                if (punteggio > punteggioMigliore) {
+                    punteggioMigliore = punteggio;
+                    colonnaMigliore = colonna;
+                }
             }
         }
 
-        // Scegli la colonna con il punteggio più alto
-        int bestCol = 0;
-        int bestScore = scores[0];
-        for (int col = 1; col < N; col++) {
-            if (scores[col] > bestScore) {
-                bestScore = scores[col];
-                bestCol = col;
-            }
-        }
-
-        return bestCol;
+        return colonnaMigliore;
     }
 
-    public int evaluateBoard( CXBoard B ){
+    private double ricercaIterativeDeepening(CXBoard tabellone, int profondita, double alfa, double beta, long tempoLimite, boolean turnoGiocatore) {
+        if (System.currentTimeMillis() >= tempoLimite || profondita == 0 || tabellone.gameState() != CXGameState.OPEN) {
+            return valutaTabellone(tabellone);
+        }
 
+        if (turnoGiocatore) {
+            double punteggioMax = Double.NEGATIVE_INFINITY;
+            for (int colonna : tabellone.getAvailableColumns()) {
+                tabellone.markColumn(colonna);
+                double punteggio = ricercaIterativeDeepening(tabellone, profondita - 1, alfa, beta, tempoLimite, false);
+                tabellone.unmarkColumn();
+                punteggioMax = Math.max(punteggioMax, punteggio);
+                alfa = Math.max(alfa, punteggio);
+                if (alfa >= beta) {
+                    break;
+                }
+            }
+            return punteggioMax;
+        } else {
+            double punteggioMin = Double.POSITIVE_INFINITY;
+            for (int colonna : tabellone.getAvailableColumns()) {
+                tabellone.markColumn(colonna);
+                double punteggio = ricercaIterativeDeepening(tabellone, profondita - 1, alfa, beta, tempoLimite, true);
+                tabellone.unmarkColumn();
+                punteggioMin = Math.min(punteggioMin, punteggio);
+                beta = Math.min(beta, punteggio);
+                if (alfa >= beta) {
+                    break;
+                }
+            }
+            return punteggioMin;
+        }
+    }
+
+    private double valutaTabellone(CXBoard tabellone) {
+        if (tabellone.gameState() == CXGameState.WINP1 && primoGiocatore || tabellone.gameState() == CXGameState.WINP2 && !primoGiocatore) {
+            return Double.POSITIVE_INFINITY;
+        } else if (tabellone.gameState() == CXGameState.WINP1 && !primoGiocatore || tabellone.gameState() == CXGameState.WINP2 && primoGiocatore) {
+            return Double.NEGATIVE_INFINITY;
+        } else {
+            int gettoniGiocatore = 0;
+            int gettoniAvversario = 0;
+            for (CXCell cella : tabellone.getMarkedCells()) {
+                if (tabellone.currentPlayer() == giocatore) {
+                    gettoniGiocatore++;
+                } else {
+                    gettoniAvversario++;
+                }
+            }
+            return gettoniGiocatore - gettoniAvversario;
+        }
     }
 
     @Override
     public String playerName() {
-        return "Jojo";  // sostituisci con il nome del tuo giocatore
+        return "Jojo";
     }
-
 }
