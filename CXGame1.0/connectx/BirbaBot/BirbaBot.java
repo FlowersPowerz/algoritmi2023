@@ -5,9 +5,6 @@ import connectx.CXBoard;
 import connectx.CXCell;
 import connectx.CXCellState;
 import connectx.CXGameState;
-
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -17,13 +14,15 @@ import java.util.concurrent.TimeoutException;
  * 2) Search 
  * 	- AlphaBeta with Iterative Deepening
  *  - game Tree nodes sorting by best
- *  - 
  *	- Transposition Table
  *
  * TO DO: 
  * [x] simple Evaluate function
  * [x] GameTree che funziona perdavvero
  * [x] AlphaBeta implementation
+ * [.] Evaluate con Euristica basta sulla helpfulness
+ * [.] HashMap?? con le mosse già computate nei turni precedenti, in modo da non visitare 
+ *     ogni volta un nuovo Game Tree
  * [.] AlphaBeta + Iterative Deepening
  */
 
@@ -34,34 +33,28 @@ public class BirbaBot implements CXPlayer {
 	private int TIMEOUT;
 	private long START;
 	private boolean first;
-	private int M, N, K;
+	private int M, N, X; // M righe, N colonne, X allineamenti
 	private CXBoard tmpBoard; // usata per navigare il nostro game tree
 	private CXGameState myWin, yourWin;
 	private CXCellState me, opponent;
-	private TreeNode bestMove, root; // radice del game tree
-	private Map<CXCell, TreeNode> EvaluatedBoard; // hashtable dei nodi già valutati, la posizione della cella è la
-													// chiave
-	private TreeNode oldnode; // radice dell'ultimo albero visitato, utile per ritrovare la valutazione di mosse già viste
+	private TreeNode bestMove, root; // miglior mossa trovata e radice del game tree
 	private int nodeCount;
 
 	/* Default empty constructor */
 	public BirbaBot() {
 	}
 
-	public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
+	public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
 		this.M = M;
 		this.N = N;
-		this.K = K;
+		this.X = X;
 		TIMEOUT = timeout_in_secs;
-		START = System.currentTimeMillis(); // Save starting time during initialization
 
 		this.first = first;
 		myWin = first ? CXGameState.WINP1 : CXGameState.WINP2;
 		yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
 		me = first ? CXCellState.P1 : CXCellState.P2;
 		opponent = first ? CXCellState.P2 : CXCellState.P1;
-		// create an empty Hashtable
-		EvaluatedBoard = new HashMap<>();
 		bestMove = null;
 		nodeCount = 0;
 		root = null;
@@ -69,6 +62,7 @@ public class BirbaBot implements CXPlayer {
 
 	/* Selects the best move possible */
 	public int selectColumn(CXBoard B) {
+		START = System.currentTimeMillis(); // Save starting time
 		// Siamo il player P1, nostro primo turno
 		if (first && root == null) {
 			// la letteratura ci dice che la prima mossa migliore è sempre la colonna di
@@ -77,7 +71,7 @@ public class BirbaBot implements CXPlayer {
 			// creo la radice e genero il game tree
 			root = new TreeNode(B.getLastMove());
 			tmpBoard = B.copy();
-			AlphaBetaStart(root, me);
+			AlphaBetaStart(root, me, -1, 1);
 			System.err.println("nodi visitati: " + nodeCount);
 			System.err.println("bestMove: " + bestMove.getCell().j);
 			System.err.println("bestMOveValue: " + bestMove.getLabel());
@@ -90,7 +84,7 @@ public class BirbaBot implements CXPlayer {
 			// l'ultima mossa fatta dall'avversario è la radice del mio albero di gioco
 			root = new TreeNode(B.getLastMove());
 			tmpBoard = B.copy();
-			AlphaBetaStart(root, me);
+			AlphaBetaStart(root, me, -1, 1);
 			System.err.println("nodi visitati: " + nodeCount);
 			System.err.println("bestMove: " + bestMove.getCell().j);
 			System.err.println("bestMOveValue: " + bestMove.getLabel());
@@ -98,58 +92,51 @@ public class BirbaBot implements CXPlayer {
 				System.err.println("Valore dei figli di root: " + i.getLabel());
 			return bestMove.getCell().j;
 		} else {
-			// ho già una parte di tabella valuata, ma può capitare una configurazione non
-			// ancora vista
+			tmpBoard = B.copy();
 			if (root.getChildnumber() == 0) {
-				System.err.println("MinMax al primo turno non ha generato l'albero");
+				System.err.println("AlphaBeta al nostro primo turno non ha generato l'albero");
 			}
-			// copio il nodo della mossa precedente
-			// TreeNode oppMove = EvaluatedBoard.get(B.getLastMove());
-			// ritorno il primo figlio, visto che l'array dei figli è ordinato
-			// decrescente
-			// if (!EvaluatedBoard.containsValue(oppMove)) {
-				// System.err.println("Cache miss");
-				root = new TreeNode(B.getLastMove());
-				tmpBoard = B.copy();
-				EvaluatedBoard.put(B.getLastMove(), root);
-				// try {
-				AlphaBetaStart(root, me);
+			// ho già una parte del game tree valutato, ma può capitare una configurazione
+			// non ancora vista, quindi controllo
+			// se il nodo della nostra mossa precedente contiene la mossa appena fatta
+			// dall'avversario
+			TreeNode lastOppMove = bestMove.getChildByCell(tmpBoard.getLastMove());
+			if (lastOppMove == null) {
+				// la mossa non è stata trovata, sposto la radice del game tree sul nuovo nodo
+				// che non è stato valutato
+				System.err.println("Cache miss!");
+				TreeNode new_child = new TreeNode(tmpBoard.getLastMove());
+				root = new_child;
+				AlphaBetaStart(root, me, -1, 1);
 				System.err.println("nodi visitati: " + nodeCount);
 				System.err.println("bestMove: " + bestMove.getCell().j);
 				System.err.println("bestMOveValue: " + bestMove.getLabel());
 				for (TreeNode i : root.getChildNodes())
 					System.err.println("Valore dei figli di root: " + i.getLabel());
 				return bestMove.getCell().j;
-			// } else
-			// 	return oppMove.getChild(0).getCell().j;
-			// TreeNode oppMove = new TreeNode(B.getLastMove());
-			// tmpBoard = B.copy();
-			// try {
-			// MinMaxStart(oppMove, me);
-			// return bestMove.getCell().j;
-			// } catch (Exception e) {
-			// System.err.println("Timeout turno n, seleziono la prima colonna libera, figli
-			// di oppMove "+ oppMove.getChildnumber());
-			// Integer[] L = B.getAvailableColumns();
-			// return L[0];
-			// }
+			} else {
+				// ho trovato la mossa già valutata nel game tree, ritorno la best move del nodo
+				System.err.println("Cache Hit!");
+				lastOppMove.sortChildren();
+				return lastOppMove.getChild(0).getCell().j;
+			}
 		}
 	}
 
 	/**
-	 * Comincia l'algoritmo minimax partendo dal giocatore che massimizza, ovvero il
-	 * nostro player
-	 * Aggiornando il campo BestMove con la mossa migliore da fare dopo il nodo T
+	 * Comincia l'algoritmo alphabeta partendo dal giocatore che massimizza, ovvero
+	 * il
+	 * nostro player aggiornando il campo BestMove con la mossa migliore da fare
+	 * dopo il nodo T
 	 * Questa funzione va chiamata in <code> SelectCell </code> al posto di MinMax
 	 * per avere la bestMove nel nostro turno
 	 * 
 	 * @param T
 	 * @param player
 	 */
-	private void AlphaBetaStart(TreeNode T, CXCellState player) {// throws TimeoutException {
+	private void AlphaBetaStart(TreeNode T, CXCellState player, int alpha, int beta) {// throws TimeoutException {
 		nodeCount++;
 		// checktime();
-		// System.err.println("entrato in Startminmax");
 		int eval = -Integer.MAX_VALUE; // eval = -oo
 		int bestMoveValue = eval;
 		// maximizing player
@@ -165,10 +152,8 @@ public class BirbaBot implements CXPlayer {
 			T.addChild(child);
 			// evaluate this move by taking the max value between current eval and value
 			// calculated by MinMax
-			eval = Math.max(eval, AlphaBeta(child, opponent, -1, 1));
-			// EvaluatedBoard.put(child.getCell(), child);
+			eval = Math.max(eval, AlphaBeta(child, opponent, alpha, beta));
 			tmpBoard.unmarkColumn();
-			// lastNode = child;
 
 			if (eval > bestMoveValue) {
 				bestMove = child;
@@ -191,11 +176,9 @@ public class BirbaBot implements CXPlayer {
 		nodeCount++;
 		// checktime();
 		int eval;
-		// System.err.println("entrato in minmax");
 		// siamo arrivati alla fine dell'albero, chiamo evaluate: +1 win, -1 loss, 0
 		// draw
 		if (T.isLeaf()) {
-			// System.err.println("entrato nel ramo evaluate");
 			eval = evaluate(T, player);
 		}
 		// Our player is maximizing
@@ -211,12 +194,10 @@ public class BirbaBot implements CXPlayer {
 				if (tmpBoard.gameState() != CXGameState.OPEN)
 					child.updateLeaf();
 				T.addChild(child);
-				// System.err.println("è una foglia?" + child.isLeaf());
 				// evaluate this move by taking the max value between current eval and value
 				// calculated by MinMax
 				eval = Math.max(eval, AlphaBeta(child, opponent, alpha, beta));
 				alpha = Math.max(eval, alpha);
-				// EvaluatedBoard.put(child.getCell(), child);
 				tmpBoard.unmarkColumn();
 				// lastNode = child;
 				if (beta <= alpha)
@@ -235,12 +216,10 @@ public class BirbaBot implements CXPlayer {
 				if (tmpBoard.gameState() != CXGameState.OPEN)
 					child.updateLeaf();
 				T.addChild(child);
-				// System.err.println("è una foglia?" + child.isLeaf());
 				// evaluate this move by taking the max value between current eval and value
 				// calculated by MinMax
 				eval = Math.min(eval, AlphaBeta(child, me, alpha, beta));
 				beta = Math.min(eval, beta);
-				// EvaluatedBoard.put(child.getCell(), child);
 				tmpBoard.unmarkColumn();
 				// lastNode = child;
 				if (beta <= alpha)
@@ -255,13 +234,15 @@ public class BirbaBot implements CXPlayer {
 	 * Valuta le configurazioni finali del Game Tree
 	 * Il giocatore P1 è quello che massimizza(vittoria = -1)
 	 * Il giocatore P2 è quello che minimizza(vittoria = 1)
-	 * @param T leaf node
+	 * 
+	 * @param T      leaf node
 	 * @param player current player
 	 * @return evaluation of the leaf node
 	 * @throws IllegalArgumentException
 	 */
 	private int evaluate(TreeNode T, CXCellState player) throws IllegalArgumentException {
-		// possibile ottimizzazione: usare l'euristica per rendere più precisi i valori di una mossa,
+		// possibile ottimizzazione: usare l'euristica per rendere più precisi i valori
+		// di una mossa,
 		// anche in una configurazione non finale
 		// win = +1
 		if (tmpBoard.gameState() == myWin) {
@@ -290,4 +271,3 @@ public class BirbaBot implements CXPlayer {
 		return "BirbaBot";
 	}
 }
-
