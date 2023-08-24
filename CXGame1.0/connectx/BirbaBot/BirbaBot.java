@@ -104,11 +104,11 @@ public class BirbaBot implements CXPlayer {
 				AlphaBetaStart(root, me, -Integer.MAX_VALUE, Integer.MAX_VALUE);
 			} catch (Exception e) {
 				System.err.println("Scelgo una colonna centrale");
-				Board.markColumn(N / 2);
-				root = new TreeNode(Board.getLastMove());
+				B.markColumn(N / 2);
+				root = new TreeNode(B.getLastMove());
 				return N / 2;
 			}
-			saveMove();
+			saveMove(bestMove);
 			return bestMove.getCell().j;
 		} else {
 			if (meFirst_secondturn) {
@@ -131,7 +131,7 @@ public class BirbaBot implements CXPlayer {
 						return A[0];
 					}
 				}
-				saveMove();
+				saveMove(bestMove);
 				return bestMove.getCell().j;
 			} else {
 				// ho già una parte del game tree valutato, ma può capitare una configurazione
@@ -158,7 +158,7 @@ public class BirbaBot implements CXPlayer {
 							return A[0];
 						}
 					}
-					saveMove();
+					saveMove(bestMove);
 					return bestMove.getCell().j;
 				} else {
 					// ho trovato la mossa già valutata nel game tree: ritorno la best move del nodo
@@ -176,7 +176,7 @@ public class BirbaBot implements CXPlayer {
 							bestMove.label = it.label;
 						}
 					}
-					saveMove();
+					saveMove(lastOppMove);
 					return bestMove.getCell().j;
 				}
 			}
@@ -492,13 +492,13 @@ public class BirbaBot implements CXPlayer {
 		}
 	}
 
-	private void saveMove() {
+	private void saveMove(TreeNode move) {
 		System.err.println("nodi visitati: " + nodeCount);
-		System.err.println("bestMove: " + bestMove.getCell().j);
-		System.err.println("bestMoveLabel: " + bestMove.label);
+		System.err.println("Move: " + move.getCell().j);
+		System.err.println("moveLabel: " + move.label);
 
-		for (TreeNode i : bestMove.getChildNodes())
-			System.err.println("Valore dei figli di bestMove: " + i.label);
+		for (TreeNode i : move.getChildNodes())
+			System.err.println("Valore dei figli di move: " + i.label);
 
 		root = bestMove;
 	}
