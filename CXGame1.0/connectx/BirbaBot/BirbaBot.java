@@ -42,6 +42,7 @@ public class BirbaBot implements CXPlayer {
 	private CXCellState me, opponent;
 	private TreeNode bestMove, root; // miglior mossa trovata e radice del game tree
 	private int nodeCount;
+	boolean meFirst_secondturn = false;
 
 	/**
 	 * Board grid origin(0,0) is on the upper-left corner
@@ -77,14 +78,15 @@ public class BirbaBot implements CXPlayer {
 	public int selectColumn(CXBoard B) {
 		START = System.currentTimeMillis(); // Save starting time
 		nodeCount = 0;
+		Board = B.copy();
 		// Siamo il player P1, nostro primo turno
 		if (first && root == null) {
 			// la letteratura ci dice che la prima mossa migliore è sempre la colonna di
 			// mezzo
-			B.markColumn(N / 2);
+			Board.markColumn(N / 2);
 			// creo la radice
-			root = new TreeNode(B.getLastMove());
-			// Board = B.copy();
+			root = new TreeNode(Board.getLastMove());
+			meFirst_secondturn = true;
 			// non mi serve la best move, posso usare alphabeta per creare il game tree
 			// AlphaBeta(root, opponent, -Integer.MAX_VALUE, Integer.MAX_VALUE);
 			// System.err.println("nodi visitati: " + nodeCount);
@@ -98,43 +100,21 @@ public class BirbaBot implements CXPlayer {
 		else if (!first && root == null) {
 			// l'ultima mossa fatta dall'avversario è la radice del mio albero di gioco
 			root = new TreeNode(B.getLastMove());
-			Board = B.copy();
 			try {
 				AlphaBetaStart(root, me, -Integer.MAX_VALUE, Integer.MAX_VALUE);
 			} catch (Exception e) {
-				System.err.println("Scelgo una colonna centrale se disponibile");
-				if (!B.fullColumn(N / 2)) {
-					B.markColumn(N / 2);
-					root = new TreeNode(B.getLastMove());
-					return N / 2;
-				} else {
-					int col = N / 2 - 1;
-					while (col >= 0 && col < N) {
-						if (!B.fullColumn(col)) {
-							B.markColumn(col);
-							root = new TreeNode(B.getLastMove());
-							return col;
-						}
-						col--;
-					}
-				}
+				System.err.println("Scelgo una colonna centrale");
+				Board.markColumn(N / 2);
+				root = new TreeNode(Board.getLastMove());
+				return N / 2;
 			}
-			System.err.println("nodi visitati: " + nodeCount);
-			System.err.println("bestMove: " + bestMove.getCell().j);
-			System.err.println("bestMoveLabel: " + bestMove.getLabel());
-
-			for (TreeNode i : root.getChildNodes())
-				System.err.println("Valore dei figli di root: " + i.getLabel());
-			
-			root = bestMove;
-			B.markColumn(bestMove.getCell().j);
+			saveMove();
 			return bestMove.getCell().j;
 		} else {
-			Board = B.copy();
-			if (root.getChildnumber() == 0) {
-				System.err.println("è il nostro secondo turno: genero l'albero");
-				TreeNode child = new TreeNode(B.getLastMove());
-				root = child;
+			if (meFirst_secondturn) {
+				meFirst_secondturn = false;
+				System.err.println("siamo partiti per primi ed è il nostro secondo turno: genero l'albero");
+				root = new TreeNode(B.getLastMove());
 				try {
 					AlphaBetaStart(root, me, -Integer.MAX_VALUE, Integer.MAX_VALUE);
 				} catch (Exception e) {
@@ -145,26 +125,13 @@ public class BirbaBot implements CXPlayer {
 						root = new TreeNode(B.getLastMove());
 						return N / 2;
 					} else {
-						int col = N / 2 - 1;
-						while (col >= 0 && col < N) {
-							if (!B.fullColumn(col)) {
-								B.markColumn(col);
-								root = new TreeNode(B.getLastMove());
-								return col;
-							}
-						}
+						System.err.println("column full, first column available is selected");
+						// pedantic check when table is very small(e.g.: 2x2, 3x3)
+						Integer[] A = B.getAvailableColumns();
+						return A[0];
 					}
 				}
-
-				System.err.println("nodi visitati: " + nodeCount);
-				System.err.println("bestMove: " + bestMove.getCell().j);
-				System.err.println("bestMoveLabel: " + bestMove.getLabel());
-
-				for (TreeNode i : child.getChildNodes())
-					System.err.println("Valore dei figli di root: " + i.getLabel());
-
-				root = bestMove;
-				B.markColumn(bestMove.getCell().j);
+				saveMove();
 				return bestMove.getCell().j;
 			} else {
 				// ho già una parte del game tree valutato, ma può capitare una configurazione
@@ -176,36 +143,22 @@ public class BirbaBot implements CXPlayer {
 					// la mossa non è stata trovata: sposto la radice del game tree sul nuovo nodo
 					// che non è stato valutato
 					System.err.println("Cache miss!");
-					TreeNode new_child = new TreeNode(B.getLastMove());
-					root = new_child;
+					root = new TreeNode(B.getLastMove());
 					try {
-					AlphaBetaStart(root, me, -Integer.MAX_VALUE, Integer.MAX_VALUE);
-				} catch (Exception e) {
-					System.err.println("Scelgo una colonna centrale se disponibile");
-					if (!B.fullColumn(N / 2)) {
-						B.markColumn(N / 2);
-						return N / 2;
-					} else {
-						int col = N / 2 - 1;
-						while (col >= 0 && col < N) {
-							if (!B.fullColumn(col)) {
-								B.markColumn(col);
-								root = new TreeNode(B.getLastMove());
-								return col;
-							}
+						AlphaBetaStart(root, me, -Integer.MAX_VALUE, Integer.MAX_VALUE);
+					} catch (Exception e) {
+						System.err.println("Scelgo una colonna centrale se disponibile");
+						// codice temporaneo, verrà sostituito da una funzione EvaluateGame(),
+						// basato su euristica
+						if (!B.fullColumn(N / 2)) {
+							B.markColumn(N / 2);
+							return N / 2;
+						} else {
+							Integer[] A = B.getAvailableColumns();
+							return A[0];
 						}
 					}
-				}
-
-					System.err.println("nodi visitati: " + nodeCount);
-					System.err.println("bestMove: " + bestMove.getCell().j);
-					System.err.println("bestMoveLabel: " + bestMove.getLabel());
-
-					for (TreeNode i : root.getChildNodes())
-						System.err.println("Valore dei figli di root: " + i.getLabel());
-
-					root = bestMove;
-					B.markColumn(bestMove.getCell().j);
+					saveMove();
 					return bestMove.getCell().j;
 				} else {
 					// ho trovato la mossa già valutata nel game tree: ritorno la best move del nodo
@@ -216,19 +169,14 @@ public class BirbaBot implements CXPlayer {
 					bestMove = lastOppMove.getChild(0);
 					bestMove.label = lastOppMove.getChild(0).label;
 					for (TreeNode it : lastOppMove.getChildNodes()) {
+						System.err.println("bestMove label: " + bestMove.label);
+						System.err.println("it label: " + it.label);
 						if (it.label > bestMove.label) {
 							bestMove = it;
 							bestMove.label = it.label;
 						}
-						System.err.println("Valore dei figli di lastOppMove: " + it.getLabel());
 					}
-
-					System.err.println("nodi visitati: " + nodeCount);
-					System.err.println("bestMove: " + bestMove.getCell().j);
-					System.err.println("bestMoveLabel: " + bestMove.getLabel());
-
-					root = bestMove;
-					B.markColumn(bestMove.getCell().j);
+					saveMove();
 					return bestMove.getCell().j;
 				}
 			}
@@ -273,7 +221,7 @@ public class BirbaBot implements CXPlayer {
 			if (eval > bestMoveValue) {
 				bestMove = child;
 				bestMoveValue = eval;
-				T.updateLabel(bestMoveValue);
+				T.label = bestMoveValue;
 			}
 		}
 	}
@@ -340,7 +288,7 @@ public class BirbaBot implements CXPlayer {
 					break;
 			}
 		}
-		T.updateLabel(eval);
+		T.label = eval;
 		return eval;
 	}
 
@@ -369,7 +317,8 @@ public class BirbaBot implements CXPlayer {
 			System.err.println("È stata passata una configurazione non finale");
 			return 0;
 			// usiamo l'euristica per valutare la mossa in base alla helpfulness
-			// return evaluateColumn(T.getCell(), me) + evaluateColumn(T.getCell(), opponent);
+			// return evaluateColumn(T.getCell(), me) + evaluateColumn(T.getCell(),
+			// opponent);
 		}
 	}
 
@@ -465,8 +414,7 @@ public class BirbaBot implements CXPlayer {
 			int rightBound = Math.max(N - 1, cell.j + X - 1);
 			int upperBound = Math.max(0, cell.i - X + 1);
 			int lowerBound = Math.min(M - 1, cell.i + X - 1);
-			// la furbata per il check verticale non si può fare, tocca trovare il range e
-			// poi valutare
+
 			for (lower = cell.i, left = cell.j; left > leftBound && lower < lowerBound; left--, lower++) {
 				CXCellState p = tmpBoard[lower + 1][left - 1];
 				if (p != player || p != CXCellState.FREE)
@@ -542,6 +490,17 @@ public class BirbaBot implements CXPlayer {
 				return val;
 			}
 		}
+	}
+
+	private void saveMove() {
+		System.err.println("nodi visitati: " + nodeCount);
+		System.err.println("bestMove: " + bestMove.getCell().j);
+		System.err.println("bestMoveLabel: " + bestMove.label);
+
+		for (TreeNode i : bestMove.getChildNodes())
+			System.err.println("Valore dei figli di bestMove: " + i.label);
+
+		root = bestMove;
 	}
 
 	/**

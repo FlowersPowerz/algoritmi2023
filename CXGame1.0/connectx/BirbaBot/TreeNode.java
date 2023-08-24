@@ -106,13 +106,13 @@ public class TreeNode {
     return Moves;
   }
 
-  public int getLabel() {
-    return label;
-  }
+  // public int getLabel() {
+  //   return label;
+  // }
 
-  public void updateLabel(int val) {
-    this.label = val;
-  }
+  // public void updateLabel(int val) {
+  //   this.label = val;
+  // }
 
   public void updateLeaf() {
     this.Leaf = true;
@@ -133,13 +133,13 @@ public class TreeNode {
    *         exists
    */
   public TreeNode getChildByCell(CXCell move) {
-    if (childNodes != null) {
-      for (TreeNode i : this.childNodes) {
-        if (i == null)
+    if (this.childNodes != null) {
+      for (TreeNode n : this.childNodes) {
+        if (n == null)
           break;
         // la cella della mossa è stata trovata, ritorna il nodo
-        if (i.getCell().i == move.i && i.getCell().j == move.j) {
-          return i;
+        if (n.getCell().i == move.i && n.getCell().j == move.j) {
+          return n;
         }
       }
     }
