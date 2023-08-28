@@ -5,6 +5,9 @@ import connectx.CXBoard;
 import connectx.CXCell;
 import connectx.CXCellState;
 import connectx.CXGameState;
+
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
@@ -17,39 +20,43 @@ import java.util.concurrent.TimeoutException;
  *  - game Tree nodes sorting by best
  *	- Transposition Table
  *
- * TO DO: 
- * [.] Evaluate con Euristica basta sulla helpfulness
+ * TODO: check isWinningPosition: might be that stateBoard is not updated just by calling Board.markcolumn(col) 
+ * [x] Evaluate con Euristica basta sulla helpfulness
  * [.] Transposition Table con le mosse già computate nei turni precedenti in modo da non visitare 
  *     ogni volta un nuovo Game Tree
- * [.] AlphaBeta + Iterative Deepening
- * [.] Move ordering
+ * [x] AlphaBeta + Iterative Deepening
+ * [x] Move ordering
  */
 
 /**
  * Our Player
  */
 public class BirbaBot implements CXPlayer {
+	// constants for the Euristics
 	private final int WIN = 100000;
-	private final int LOSS = -100000;
+	private final int LOSS = -100000, BLOCK_OPP = WIN - 1;
+	// variables of initPlayer()
 	private int TIMEOUT;
 	private long START;
 	private boolean first;
 	private int M, N, X; // M righe, N colonne, X allineamenti
-	private CXBoard Board; // variabile x utilizzare le funzioni di CXBoard
-	private CXCellState[][] tmpBoard;
-	// private Set<CXCell> MC; // Marked Cells hash
-	private CXGameState myWin, yourWin;
+	// our copies of the game board
+	private CXBoard Board;
+	private CXCellState[][] stateBoard;
+	// variables for checking gamestate and cells state
+	private int meint, oppint;
 	private CXCellState me, opponent;
-	private TreeNode bestMove, root; // miglior mossa trovata e radice del game tree
-	private int nodeCount;
-	boolean meFirst_secondturn = false;
-
+	private Set<CXCellState> AC; // Available Columns
+	private CXGameState myWin, yourWin;
 	/**
-	 * Board grid origin(0,0) is on the upper-left corner
+	 * game tree nodes: bestmove and root of the game tree, root is initialized to
+	 * bestMove at the end of every single one of our turns
 	 */
-	enum Grid {
-		Vertical, Horizontal, PosDiagonal, NegDiagonal
-	};
+	private TreeNode bestMove, root;
+
+	private Evaluate util;
+	private int nodeCount;
+	private boolean meFirst_secondturn = false;
 
 	/* Default empty constructor */
 	public BirbaBot() {
@@ -60,10 +67,12 @@ public class BirbaBot implements CXPlayer {
 		this.N = N;
 		this.X = X;
 
-		tmpBoard = new CXCellState[M][N];
+		stateBoard = new CXCellState[M][N];
 
 		TIMEOUT = timeout_in_secs;
 		this.first = first;
+		meint = first ? 0 : 1;
+		oppint = first ? 0 : 1;
 		myWin = first ? CXGameState.WINP1 : CXGameState.WINP2;
 		yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
 		me = first ? CXCellState.P1 : CXCellState.P2;
@@ -78,179 +87,114 @@ public class BirbaBot implements CXPlayer {
 	public int selectColumn(CXBoard B) {
 		START = System.currentTimeMillis(); // Save starting time
 		nodeCount = 0;
-		Board = B.copy();
-		// Siamo il player P1, nostro primo turno
-		if (first && root == null) {
-			// la letteratura ci dice che la prima mossa migliore è sempre la colonna di
-			// mezzo
-			Board.markColumn(N / 2);
-			// creo la radice
-			root = new TreeNode(Board.getLastMove());
-			meFirst_secondturn = true;
-			// non mi serve la best move, posso usare alphabeta per creare il game tree
-			// AlphaBeta(root, opponent, -Integer.MAX_VALUE, Integer.MAX_VALUE);
-			// System.err.println("nodi visitati: " + nodeCount);
-			// System.err.println("bestMove: " + bestMove.getCell().j);
-			// System.err.println("bestMOveValue: " + bestMove.getLabel());
-			// for (TreeNode i : root.getChildNodes())
-			// System.err.println("Valore dei figli di root: " + i.getLabel());
-			return N / 2;
+		// look at last opponent move
+		CXCell lastMove = null;
+		lastMove = B.getLastMove();
+		// update our Board and stateBoard
+		if (lastMove != null) {
+			Board.markColumn(lastMove.j);
+			stateBoard[lastMove.i][lastMove.j] = opponent;
 		}
-		// siamo il player P2, nostro primo turno
-		else if (!first && root == null) {
-			// l'ultima mossa fatta dall'avversario è la radice del mio albero di gioco
-			root = new TreeNode(B.getLastMove());
-			try {
-				AlphaBetaStart(root, me, -Integer.MAX_VALUE, Integer.MAX_VALUE);
-			} catch (Exception e) {
-				System.err.println("Scelgo una colonna centrale");
-				B.markColumn(N / 2);
-				root = new TreeNode(B.getLastMove());
-				return N / 2;
+		// moves to be inserted in T.Moves
+		// LabeledMove[] moves;
+		// not the first turn
+		if (bestMove != null && lastMove != null) {
+			TreeNode myMove = bestMove.getChildByCell(lastMove);
+			// root è la mia mossa già presente nel game tree
+			if (myMove != null) {
+				root = myMove;
+				//moves = root.getMoves();
 			}
+			// altrimenti prendo il sottoalbero radicato nell'ultima mossa dell'avversario
+			else {
+				root = new TreeNode(lastMove);
+				GenerateMoveList(root);
+			}
+		}
+		// first turn
+		else {
+			if (lastMove == null) {
+				Board = B.copy();
+				stateBoard = B.getBoard();
+				Board.markColumn(N/2);
+				root = new TreeNode(Board.getLastMove());
+				GenerateMoveList(root);
+			}
+			else {
+				Board = B.copy();
+				stateBoard = B.getBoard();
+				root = new TreeNode(Board.getLastMove());
+				GenerateMoveList(root);
+			}
+		}
+		// start iterative deepening
+		try {
+			IterativeDeepening(root, Board.currentPlayer() == meint ? me : opponent, 6);
+		} catch (Exception e) {
+			System.err.println("time ran out: return best move found yet");
 			saveMove(bestMove);
 			return bestMove.getCell().j;
-		} else {
-			if (meFirst_secondturn) {
-				meFirst_secondturn = false;
-				System.err.println("siamo partiti per primi ed è il nostro secondo turno: genero l'albero");
-				root = new TreeNode(B.getLastMove());
-				try {
-					AlphaBetaStart(root, me, -Integer.MAX_VALUE, Integer.MAX_VALUE);
-				} catch (Exception e) {
-					System.err.println("Scelgo una colonna centrale se disponibile");
-					System.err.println("Nodi visitati: " + nodeCount);
-					if (!B.fullColumn(N / 2)) {
-						B.markColumn(N / 2);
-						root = new TreeNode(B.getLastMove());
-						return N / 2;
-					} else {
-						System.err.println("column full, first column available is selected");
-						// pedantic check when table is very small(e.g.: 2x2, 3x3)
-						Integer[] A = B.getAvailableColumns();
-						return A[0];
-					}
-				}
-				saveMove(bestMove);
-				return bestMove.getCell().j;
-			} else {
-				// ho già una parte del game tree valutato, ma può capitare una configurazione
-				// non ancora vista, quindi controllo
-				// se il nodo della nostra mossa precedente contiene la mossa appena fatta
-				// dall'avversario
-				TreeNode lastOppMove = root.getChildByCell(B.getLastMove());
-				if (lastOppMove == null) {
-					// la mossa non è stata trovata: sposto la radice del game tree sul nuovo nodo
-					// che non è stato valutato
-					System.err.println("Cache miss!");
-					root = new TreeNode(B.getLastMove());
-					try {
-						AlphaBetaStart(root, me, -Integer.MAX_VALUE, Integer.MAX_VALUE);
-					} catch (Exception e) {
-						System.err.println("Scelgo una colonna centrale se disponibile");
-						// codice temporaneo, verrà sostituito da una funzione EvaluateGame(),
-						// basato su euristica
-						if (!B.fullColumn(N / 2)) {
-							B.markColumn(N / 2);
-							return N / 2;
-						} else {
-							Integer[] A = B.getAvailableColumns();
-							return A[0];
-						}
-					}
-					saveMove(bestMove);
-					return bestMove.getCell().j;
-				} else {
-					// ho trovato la mossa già valutata nel game tree: ritorno la best move del nodo
-					// N.B.: i figli di lastOppMove potrebbero non essere stati generati tutti per
-					// via delle potature
-					System.err.println("Cache Hit!");
+		}
 
-					bestMove = lastOppMove.getChild(0);
-					bestMove.label = lastOppMove.getChild(0).label;
-					for (TreeNode it : lastOppMove.getChildNodes()) {
-						System.err.println("bestMove label: " + bestMove.label);
-						System.err.println("it label: " + it.label);
-						if (it.label > bestMove.label) {
-							bestMove = it;
-							bestMove.label = it.label;
-						}
-					}
-					saveMove(lastOppMove);
-					return bestMove.getCell().j;
-				}
+		saveMove(bestMove);
+		return bestMove.getCell().j;
+	}
+
+	/**
+	 * Should only be called by {@link #selectColumn(CXBoard)}, this function
+	 * searches the game tree in a BFS manner using AlphaBeta algorithm
+	 * Updates <code>bestMove</code> only when all nodes of same depth are visited
+	 * @param T	root node of the game tree
+	 * @param player player who's allowed to move
+	 * @param depth	depth of search
+	 */
+	private void IterativeDeepening(TreeNode T, CXCellState player, int depth) {
+		int alpha = -Integer.MAX_VALUE; // alpha = -oo
+		int beta = Integer.MAX_VALUE; // beta = +oo
+		int eval = 0, bestMoveValue = alpha;
+		for (int d = 0; d <= depth; d++) {
+			checktime();
+			// fai partire alpahabeta
+			eval = AlphaBeta(T, player, alpha, beta, depth);
+			if (eval > bestMoveValue) {
+				bestMoveValue = eval;
+				bestMove = T;
 			}
 		}
 	}
 
 	/**
-	 * Comincia l'algoritmo alphabeta partendo dal giocatore che massimizza, ovvero
-	 * il
-	 * nostro player aggiornando il campo BestMove con la mossa migliore da fare
-	 * dopo il nodo T
-	 * Questa funzione va chiamata in <code> SelectCell </code> al posto di
-	 * AlphaBeta
-	 * per avere la bestMove nel nostro turno
+	 * AlphaBeta algorithm. This function is invoked by
+	 * {@link #IterativeDeepening(TreeNode, CXCellState, int)} and its
+	 * implementation provides
+	 * euristic evaluation of non-final game configurations and control over the
+	 * search's <code>depth</code>.
 	 * 
-	 * @param T
-	 * @param player
+	 * @param T      current game tree node
+	 * @param player player who's allowed to move
 	 * @param alpha
 	 * @param beta
+	 * @param depth  remaining depth of the search
+	 * @return the evaluated label of <code>T</code>
 	 */
-	private void AlphaBetaStart(TreeNode T, CXCellState player, int alpha, int beta) {
-		nodeCount++;
-		checktime();
-		int eval = -Integer.MAX_VALUE; // eval = -oo
-		int bestMoveValue = eval;
-		// maximizing player
-		T.GenerateMoveList(Board);
-		System.err.println("Numero di mosse contemplabili: " + T.getMovesnumber());
-		for (int i : T.getMoves()) { // foreach move in T.list
-			// make this move in the list
-			Board.markColumn(i);
-			// add this move to the game tree
-			TreeNode child = new TreeNode(Board.getLastMove());
-			if (Board.gameState() != CXGameState.OPEN)
-				child.updateLeaf();
-			T.addChild(child);
-			// evaluate this move by taking the max value between current eval and value
-			// calculated by Alphabeta
-			eval = Math.max(eval, AlphaBeta(child, opponent, alpha, beta));
-			Board.unmarkColumn();
-
-			if (eval > bestMoveValue) {
-				bestMove = child;
-				bestMoveValue = eval;
-				T.label = bestMoveValue;
-			}
-		}
-	}
-
-	/**
-	 * Algoritmo alphabeta per valutare il Game Tree
-	 * 
-	 * @param T      nodo dell'albero di gioco da cui partire
-	 * @param player turno del giocatore corrente
-	 * @return la valutazione di una configurazione di gioco secondo l'algoritmo
-	 *         Alphabeta
-	 * @throws TimeoutException
-	 */
-	private int AlphaBeta(TreeNode T, CXCellState player, int alpha, int beta) {
+	private int AlphaBeta(TreeNode T, CXCellState player, int alpha, int beta, int depth) {
 		nodeCount++;
 		checktime();
 		int eval;
-		// siamo arrivati alla fine dell'albero: chiamo evaluate
-		if (T.isLeaf()) {
-			eval = evaluate(T, player);
+		// siamo in una foglia oppure la visita in profondità è finita
+		if (T.isLeaf() || depth == 0) {
+			eval = evaluate(T);
 		}
 		// Our player is maximizing
 		else if (player == me) {
 			eval = -Integer.MAX_VALUE; // eval = -oo
-			// generate move list
-			T.GenerateMoveList(Board);
-			for (int i : T.getMoves()) { // foreach move in T.list
+			// generate or get already generated move list
+			LabeledMove[] children = T.getMoves();
+			if (children == null)
+				GenerateMoveList(T);
+			for (LabeledMove i : children) { // foreach move in T.Moves
 				// make this move in the list
-				Board.markColumn(i);
+				Board.markColumn(i.getMove());
 				// add this move to the game tree
 				TreeNode child = new TreeNode(Board.getLastMove());
 				if (Board.gameState() != CXGameState.OPEN)
@@ -258,10 +202,9 @@ public class BirbaBot implements CXPlayer {
 				T.addChild(child);
 				// evaluate this move by taking the max value between current eval and value
 				// calculated by AlphaBeta
-				eval = Math.max(eval, AlphaBeta(child, opponent, alpha, beta));
+				eval = Math.max(eval, AlphaBeta(child, opponent, alpha, beta, depth - 1));
 				alpha = Math.max(eval, alpha);
 				Board.unmarkColumn();
-				// lastNode = child;
 				if (beta <= alpha)
 					break;
 			}
@@ -269,10 +212,13 @@ public class BirbaBot implements CXPlayer {
 		// Opponent minimizing
 		else {
 			eval = Integer.MAX_VALUE; // eval = +oo
-			T.GenerateMoveList(Board);
-			for (int i : T.getMoves()) {
+			// generate or get already generated move list
+			LabeledMove[] children = T.getMoves();
+			if (children == null)
+				GenerateMoveList(T);
+			for (LabeledMove i : children) { // foreach move in T.Moves
 				// make this move in the list
-				Board.markColumn(i);
+				Board.markColumn(i.getMove());
 				// add this move to the game tree
 				TreeNode child = new TreeNode(Board.getLastMove());
 				if (Board.gameState() != CXGameState.OPEN)
@@ -280,10 +226,9 @@ public class BirbaBot implements CXPlayer {
 				T.addChild(child);
 				// evaluate this move by taking the max value between current eval and value
 				// calculated by AlphaBeta
-				eval = Math.min(eval, AlphaBeta(child, me, alpha, beta));
+				eval = Math.min(eval, AlphaBeta(child, me, alpha, beta, depth - 1));
 				beta = Math.min(eval, beta);
 				Board.unmarkColumn();
-				// lastNode = child;
 				if (beta <= alpha)
 					break;
 			}
@@ -293,16 +238,114 @@ public class BirbaBot implements CXPlayer {
 	}
 
 	/**
-	 * Valuta le configurazioni finali del Game Tree
-	 * Il nostro giocatore è quello che massimizza (vittoria = (M*N + 1) -
-	 * #turni_giocati / 2)
-	 * Se vince l'avversario la mossa è valutata come sopra ma con segno negativo
+	 * Inizializza le mosse possibili del nodo prima di entrare nel ciclo for di
+	 * {@link #AlphaBeta(TreeNode, CXCellState, int, int, int)}, ordinandole in
+	 * ordine decrescente di
+	 * valore secondo l'euristica.
+	 * Se esiste una mossa che ci fa vincere immediatamente, l'unica mossa possibile
+	 * sarà quella.
+	 * Se esistono almeno due mosse immediatamente vincenti per l'avversario,
+	 * l'array sarà vuoto: l'eval del nodo sarà -oo se è il nostro turno, +oo se gioca l'avversario
 	 * 
-	 * @param T      leaf node
-	 * @param player current player
-	 * @return evaluation of the leaf node
+	 * @param T      nodo il cui campo <code> T.Moves </code> deve essere
+	 *               inizializzato
+	 * @param player il giocatore corrente
 	 */
-	private int evaluate(TreeNode T, CXCellState player) {
+	private void GenerateMoveList(TreeNode T) {
+		Integer[] AM = Board.getAvailableColumns();
+		LabeledMove[] moves;
+		if (AM.length > 0) {
+			moves = possibleNonLosingMoves(AM);
+			if (moves.length <= 1) {
+				T.updateMoves(moves);
+				return;
+			}
+			if (moves.length == 2) {
+				if (moves[0].getLabel() < moves[1].getLabel()) {
+					LabeledMove tmp = moves[0];
+					moves[0] = moves[1];
+					moves[1] = tmp;
+					T.updateMoves(moves);
+					return;
+				}
+			}
+			LabeledMove.radixSort(moves, moves.length);
+			T.updateMoves(moves);
+		} else
+			System.err.println("GenerateMoveList has been called after game ended");
+	}
+
+	/**
+	 * Must only be called when generating Moves in
+	 * {@link #GenerateMoveList(TreeNode, CXCellState)} to
+	 * explore with alphabeta.
+	 * REMEMBER: It is better to win than to simply block the opponent: how do I
+	 * translate it to values? For now: win = 100000, opponent win = 99999
+	 * 
+	 * @param AM     array of available moves
+	 * @return array of Labeled Move(s) that are worth exploring with alphabeta
+	 */
+	private LabeledMove[] possibleNonLosingMoves(Integer[] AM) {
+		int oppWinningMoves = 0;
+		List<LabeledMove> WorthMoves = new LinkedList<>();
+		for (Integer col : AM) {
+			Board.markColumn(col);
+			CXCell move = Board.getLastMove();
+			util = new Evaluate(M, N, X, Board, stateBoard);
+			// We should always play a column on which the opponent has a winning position
+			// in the bottom of the column.
+			if (util.isWinningPosition(move, stateBoard)) {
+				if (move.state == me) {
+					// WorthMoves.add(new LabeledMove(WIN, move));
+					LabeledMove[] winningCell = new LabeledMove[1];
+					winningCell[0] = new LabeledMove(WIN, move);
+					return winningCell;
+				} else {
+					WorthMoves.add(new LabeledMove(BLOCK_OPP, move));
+					oppWinningMoves++;
+				}
+			}
+			if (!Board.fullColumn(move.j)) {
+				Board.markColumn(move.j);
+				CXCell upperCell = Board.getLastMove();
+				// We should never play under an opponent winning positions.
+				// if I win by placing a stone at upperCell's position, then the stone under it
+				// is worth evaluating
+				if (upperCell.state == me) {
+					if (util.isWinningPosition(upperCell, stateBoard)) {
+						WorthMoves.add(new LabeledMove(util.get_helpfulness(move), move));
+					}
+				}
+				Board.unmarkColumn();
+			}
+			// If the opponent has more than two directly playable winning positions, then
+			// we cannot do anything and we will lose.
+			if (oppWinningMoves >= 2) {
+				LabeledMove[] empty = new LabeledMove[0];
+				return empty;
+			}
+			// after all the checks, just add move to the list
+			else {
+				WorthMoves.add(new LabeledMove(util.get_helpfulness(move), move));
+			}
+			Board.unmarkColumn();
+		}
+		LabeledMove[] return_moves = new LabeledMove[WorthMoves.size()];
+		WorthMoves.toArray(return_moves);
+		return return_moves;
+	}
+
+	/**
+	 * Called only by {@link #AlphaBeta(TreeNode, CXCellState, int, int, int)}, this
+	 * function provides the evaluation of any
+	 * <code>TreeNode</code>: be it a leaf
+	 * or a non-final move
+	 * 
+	 * @param T      game tree node
+	 * @param player current player
+	 * @return evaluation of the node
+	 */
+	private int evaluate(TreeNode T) {
 		// configurazione di gioco finale: uso un punteggio che va in base ai turni
 		// giocati per vincere/perdere
 		if (Board.gameState() != CXGameState.OPEN) {
@@ -315,181 +358,29 @@ public class BirbaBot implements CXPlayer {
 			}
 		} else {
 			System.err.println("È stata passata una configurazione non finale");
-			return 0;
-			// usiamo l'euristica per valutare la mossa in base alla helpfulness
-			// return evaluateColumn(T.getCell(), me) + evaluateColumn(T.getCell(),
-			// opponent);
+			return EvaluateConfiguration(T);
 		}
 	}
 
-	private int evaluateColumn(CXCell cell, CXCellState player) {
-		int helpfulness = 0;
-		boolean diagonals = true;
-		// placing the piece where we are contemplating is done by alphabeta
-		// mi ci vuole un modo per calcolare velocemente il numero di gettoni in orizz.
-		// e vert.
-		if (M >= X) {
-			helpfulness += count(cell, player, Grid.Vertical);
-		} else
-			diagonals = false;
-		if (N >= X) {
-			helpfulness += count(cell, player, Grid.Horizontal);
-		} else
-			diagonals = false;
-		if (diagonals)
-			helpfulness += count(cell, player, Grid.PosDiagonal) + count(cell, player, Grid.NegDiagonal);
-		return helpfulness;
-	}
-
-	private int count(CXCell cell, CXCellState player, Grid area) {
-		tmpBoard = Board.getBoard();
-		if (area == Grid.Vertical) {
-			int val, lower;
-			int upperBound = Math.max(0, cell.i - X + 1);
-			int lowerBound = Math.min(M - 1, cell.i + X - 1);
-			// vado a trovare il range massimo di celle disponibili per player
-			// sotto alla mossa appena fatta ci sono i gettoni dei giocatori, sopra sono
-			// celle libere
-			for (lower = cell.i; lower < lowerBound; lower++) {
-				CXCellState p = tmpBoard[lower][cell.j + 1];
-				if (p != player || p != CXCellState.FREE)
-					break;
-			}
-			if (lower - upperBound + 1 < X)
-				return 0;
-			else {
-				int max_config = val = lower - upperBound - X + 1, max = 0;
-				while (lower < cell.i) {
-					if (max < max_config)
-						max++;
-					if (tmpBoard[lower][cell.j] == player)
-						val += max;
-					lower++;
-				}
-			}
-			return val;
+	/**
+	 * Invoked by {@link #evaluate(TreeNode, CXCellState)}, this function computes
+	 * the euristics on any
+	 * non-final configuration by
+	 * taking the sum of the helpfulness values from our perspective for every
+	 * possible move and subtracting the sum calculated from the opponents POV
+	 * 
+	 * @param T
+	 * @param player
+	 * @return
+	 */
+	private int EvaluateConfiguration(TreeNode T) {
+		int eval = 0;
+		util = new Evaluate(M, N, X, Board, stateBoard);
+		for (int i = 0; i < Board.getAvailableColumns().length; i++) {
+			eval += util.evaluateColumn(T.getCell(), me);
+			eval -= util.evaluateColumn(T.getCell(), opponent);
 		}
-		if (area == Grid.Horizontal) {
-			int right, left, val;
-			int leftBound = Math.min(0, cell.j - X + 1);
-			int rightBound = Math.max(N - 1, cell.j + X - 1);
-			// la furbata per il check verticale non si può fare, tocca trovare il range e
-			// poi valutare
-			for (left = cell.j; left > leftBound; left--) {
-				CXCellState p = tmpBoard[cell.i][left - 1];
-				if (p != player || p != CXCellState.FREE)
-					break;
-			}
-			for (right = cell.j; right < rightBound; right++) {
-				CXCellState p = tmpBoard[cell.i][right + 1];
-				if (p != player || p != CXCellState.FREE)
-					break;
-			}
-			if (right - left + 1 < X)
-				return 0;
-			else {
-				int max_config = right - left - X + 1, max = 0;
-				val = max_config;
-				while (left < cell.j) {
-					if (max < max_config)
-						max++;
-					if (tmpBoard[left][cell.j] == player)
-						val += max;
-					left++;
-				}
-				while (cell.j > right) {
-					if (max < max_config)
-						max++;
-					if (tmpBoard[right][cell.j] == player)
-						val += max;
-					right--;
-				}
-				return val;
-			}
-		}
-		if (area == Grid.PosDiagonal) {
-			// diagonale positiva è così: (/)
-			int right, left, upper, lower, val;
-			int leftBound = Math.min(0, cell.j - X + 1);
-			int rightBound = Math.max(N - 1, cell.j + X - 1);
-			int upperBound = Math.max(0, cell.i - X + 1);
-			int lowerBound = Math.min(M - 1, cell.i + X - 1);
-
-			for (lower = cell.i, left = cell.j; left > leftBound && lower < lowerBound; left--, lower++) {
-				CXCellState p = tmpBoard[lower + 1][left - 1];
-				if (p != player || p != CXCellState.FREE)
-					break;
-			}
-			for (upper = cell.i, right = cell.j; right < rightBound && upper > upperBound; right++, upper--) {
-				CXCellState p = tmpBoard[upper - 1][right + 1];
-				if (p != player || p != CXCellState.FREE)
-					break;
-			}
-			if (upper - lower + 1 < X)
-				return 0;
-			else {
-				int max_config = upper - lower - X + 1, max = 0;
-				val = max_config;
-				while (lower > cell.i) {
-					if (max < max_config)
-						max++;
-					if (tmpBoard[lower][left] == player)
-						val += max;
-					lower--;
-					left++;
-				}
-				while (upper < cell.i) {
-					if (max < max_config)
-						max++;
-					if (tmpBoard[upper][right] == player)
-						val += max;
-					upper++;
-					right--;
-				}
-				return val;
-			}
-		} else {
-			// la diagonale negativa è così: (\)
-			int right, left, upper, lower, val;
-			int leftBound = Math.min(0, cell.j - X + 1);
-			int rightBound = Math.max(N - 1, cell.j + X - 1);
-			int upperBound = Math.max(0, cell.i - X + 1);
-			int lowerBound = Math.min(M - 1, cell.i + X - 1);
-
-			for (lower = cell.i, right = cell.j; right < rightBound && lower < lowerBound; right++, lower++) {
-				CXCellState p = tmpBoard[lower + 1][right + 1];
-				if (p != player || p != CXCellState.FREE)
-					break;
-			}
-			for (upper = cell.i, left = cell.j; left > leftBound && upper > upperBound; left--, upper--) {
-				CXCellState p = tmpBoard[upper - 1][left - 1];
-				if (p != player || p != CXCellState.FREE)
-					break;
-			}
-			if (upper - lower + 1 < X)
-				return 0;
-			else {
-				int max_config = upper - lower - X + 1, max = 0;
-				val = max_config;
-				while (lower > cell.i) {
-					if (max < max_config)
-						max++;
-					if (tmpBoard[lower][right] == player)
-						val += max;
-					lower--;
-					right--;
-				}
-				while (upper < cell.i) {
-					if (max < max_config)
-						max++;
-					if (tmpBoard[upper][left] == player)
-						val += max;
-					upper++;
-					left++;
-				}
-				return val;
-			}
-		}
+		return eval;
 	}
 
 	private void saveMove(TreeNode move) {
@@ -503,6 +394,10 @@ public class BirbaBot implements CXPlayer {
 		root = bestMove;
 	}
 
+
+	public static void breakpoint() {
+		System.err.println("breakpoint");
+	}
 	/**
 	 * Throws a <code> RuntimeException </code> if we are at 99 percent of the
 	 * maximum timeout time
