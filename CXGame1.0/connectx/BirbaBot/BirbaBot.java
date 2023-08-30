@@ -105,6 +105,7 @@ public class BirbaBot implements CXPlayer {
 			else {
 				root = new TreeNode(lastOppMove);
 				GenerateMoveList(root);
+				Debug.printValueTable(stateBoard, root.getMoves());
 			}
 		}
 		// first turn
@@ -115,6 +116,7 @@ public class BirbaBot implements CXPlayer {
 				stateBoard = B.getBoard();
 				bestMove = new TreeNode(makeMove(N / 2, 0));
 				GenerateMoveList(bestMove);
+				Debug.printValueTable(stateBoard, bestMove.getMoves());
 				// root = new TreeNode(makeMove(bestMove.getMoves()[0].getMove()));
 				makeMove(bestMove.getCell().j, 0);
 				return bestMove.getCell().j;
@@ -152,40 +154,62 @@ public class BirbaBot implements CXPlayer {
 		int alpha = -Integer.MAX_VALUE; // alpha = -oo
 		int beta = Integer.MAX_VALUE; // beta = +oo
 		int eval = alpha, bestMoveValue = eval;
+		boolean alphabeta_start = true;
 		// nella mia testa depth = 0 è la radice quindi se voglio fare una visita solo
 		// al
 		// primo livello del sottoalbero radicato in T la depth = 1
 		for (int d = 1; d <= depth; d++) {
+			nodeCount++;
 			checktime();
+			System.err.println("depth: " + d);
 			// generate or get already generated move list
 			LabeledMove[] children = T.getMoves();
-			if (children == null)
+			// if this node has not been discovered yet generate its moves
+			if (children.length == 0) {
 				GenerateMoveList(T);
-			System.err.println("figlio di root");
-			for (LabeledMove i : T.getMoves()) { // foreach move in T.Moves
-				// make this move in the list and add it to the game tree
-				TreeNode child = new TreeNode(makeMove(i.getMove(), 3));
-				if (Board.gameState() != CXGameState.OPEN)
-					child.updateLeaf();
-				T.addChild(child);
-				// chiamo Alphabeta con depth decrementata (se ho d=1 Alphabeta(depth = 0) farà
-				// subito un evaluate dei figli di root)
-				// che aggiorna la bestMove se l'eval trovato è migliore di prima
-				eval = Math.max(eval, AlphaBeta(child, opponent, alpha, beta, d - 1));
-				alpha = Math.max(eval, alpha);
-
-				undoMove();
-				if (eval > bestMoveValue) {
-					bestMove = child;
-					bestMoveValue = eval;
-					T.label = bestMoveValue;
+				children = T.getMoves();
+			}
+			if (children.length == 1) {
+				alphabeta_start = false;
+				if (T.getMoves()[0].getLabel() == WIN) {
+					if (player == me)
+						eval = WIN - Board.numOfMarkedCells();
+					else
+						eval = LOSS + Board.numOfMarkedCells();
+				} else {
+					if (player == me)
+						eval = LOSS + Board.numOfMarkedCells();
+					else
+						eval = WIN - Board.numOfMarkedCells();
 				}
-				if (beta <= alpha) {
-					break;
+				bestMove = new TreeNode(makeMove(children[0].getMove(), 3));
+				bestMoveValue = eval;
+				T.label = bestMoveValue;
+			}
+			if (alphabeta_start) {
+				for (LabeledMove i : T.getMoves()) { // foreach move in T.Moves
+					// make this move in the list and add it to the game tree
+					TreeNode child = new TreeNode(makeMove(i.getMove(), 3));
+					if (Board.gameState() != CXGameState.OPEN)
+						child.updateLeaf();
+					T.addChild(child);
+					// chiamo Alphabeta con depth decrementata (se ho d=1 Alphabeta(depth = 0) farà
+					// subito un evaluate dei figli di root)
+					// che aggiorna la bestMove se l'eval trovato è migliore di prima
+					eval = Math.max(eval, AlphaBeta(child, opponent, alpha, beta, d - 1));
+					alpha = Math.max(eval, alpha);
+
+					undoMove();
+					if (eval > bestMoveValue) {
+						bestMove = child;
+						bestMoveValue = eval;
+						T.label = bestMoveValue;
+					}
+					if (beta <= alpha) {
+						break;
+					}
 				}
 			}
-			System.err.println("depth: " + d);
-			Debug.printTable(stateBoard);
 			// fai partire alpahabeta
 			// eval = AlphaBeta(T, player, alpha, beta, d);
 			// if (eval > bestMoveValue) {
@@ -258,6 +282,7 @@ public class BirbaBot implements CXPlayer {
 				alpha = Math.max(eval, alpha);
 				undoMove();
 				if (beta <= alpha) {
+					System.err.println("cutoff");
 					break;
 				}
 			}
@@ -278,6 +303,7 @@ public class BirbaBot implements CXPlayer {
 				beta = Math.min(eval, beta);
 				undoMove();
 				if (beta <= alpha) {
+					System.err.println("cutoff");
 					break;
 				}
 			}
@@ -456,12 +482,12 @@ public class BirbaBot implements CXPlayer {
 				System.err.println("hai provato a giocare dopo che la partita è finita");
 			}
 			if (Board.fullColumn(col)) {
-				System.err.println("hai giocato su una colonna già piena");
+				System.err.println("hai giocato su una colonna già piena: " + col);
 			}
 			if (col < 0 && col > N) {
 				System.err.println("hai cagato fuori dal vaso");
 			}
-			//Debug.printTable(stateBoard);
+			Debug.printTable(stateBoard);
 			return null;
 		}
 	}

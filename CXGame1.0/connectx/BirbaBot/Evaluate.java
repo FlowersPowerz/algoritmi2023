@@ -9,7 +9,7 @@ import connectx.CXCellState;
 
 public class Evaluate {
     private final int M, N, X;
-    //private CXCellState[][] stateBoard;
+    // private CXCellState[][] stateBoard;
 
     private final int Vertical = 0;
     private final int Horizontal = 1;
@@ -20,7 +20,7 @@ public class Evaluate {
         this.M = M;
         this.N = N;
         this.X = X;
-        //this.stateBoard = stateBoard;
+        // this.stateBoard = stateBoard;
     }
 
     public boolean isWinningPosition(CXCell cell, CXCellState[][] board) {
@@ -45,7 +45,7 @@ public class Evaluate {
             n++;
         if (n >= X)
             return true;
-        
+
         // Diagonal check
         n = 1;
         for (int k = 1; i - k >= 0 && j - k >= 0 && board[i - k][j - k] == s; k++)
@@ -54,7 +54,7 @@ public class Evaluate {
             n++; // forward check
         if (n >= X)
             return true;
-        
+
         // Anti-diagonal check
         n = 1;
         for (int k = 1; i - k >= 0 && j + k < N && board[i - k][j + k] == s; k++)
@@ -63,13 +63,14 @@ public class Evaluate {
             n++; // forward check
         if (n >= X)
             return true;
-        
+
         return false;
     }
 
     public int get_helpfulness(CXCellState[][] stateBoard, CXCell cell) {
-        return evaluateColumn(stateBoard, cell, CXCellState.P1)
+        int helpfulness = evaluateColumn(stateBoard, cell, CXCellState.P1)
                 + evaluateColumn(stateBoard, cell, CXCellState.P2);
+        return helpfulness;
     }
 
     /**
@@ -80,18 +81,19 @@ public class Evaluate {
      */
     public int evaluateColumn(CXCellState[][] stateBoard, CXCell cell, CXCellState player) {
         int helpfulness = 0;
-        boolean diagonals = true;
+        boolean diagonals = false;
         // placing the piece where we are contemplating is done by alphabeta
         if (M >= X) {
             helpfulness += count(stateBoard, cell, player, Vertical);
-        } else
-            diagonals = false;
+            diagonals = true;
+        }
         if (N >= X) {
             helpfulness += count(stateBoard, cell, player, Horizontal);
-        } else
-            diagonals = false;
-        if (diagonals)
+            diagonals = true;
+        }
+        if (diagonals) {
             helpfulness += count(stateBoard, cell, player, PosDiagonal) + count(stateBoard, cell, player, NegDiagonal);
+        }
         return helpfulness;
     }
 
@@ -131,6 +133,9 @@ public class Evaluate {
                     lower--;
                 }
             }
+            // if (player == CXCellState.P1) System.err.println("nostro player POV");
+            // else System.err.println("avversario POV");
+            // System.err.println("Verticale: " + val);
             return val;
         }
         if (area == Horizontal) {
@@ -149,10 +154,10 @@ public class Evaluate {
                 if (p != player && p != CXCellState.FREE)
                     break;
             }
-            //System.err.println("numero cicli eseguiti: "+i);
-            //System.err.println("stateBoard[" + cell.i+ "]["+ cell.j +"]");
-            //System.err.println("right: "+ right);
-            //System.err.println("left: "+ left);
+            // System.err.println("numero cicli eseguiti: "+i);
+            // System.err.println("stateBoard[" + cell.i+ "]["+ cell.j +"]");
+            // System.err.println("right: "+ right);
+            // System.err.println("left: "+ left);
             if (right - left + 1 < X)
                 return 0;
             else {
@@ -161,18 +166,23 @@ public class Evaluate {
                 while (left < cell.j) {
                     if (max < max_config)
                         max++;
-                    if (stateBoard[cell.i][left] == player)
+                    if (stateBoard[cell.i][left] == player) {
+                        //System.err.println("Hai trovato una tua cella nella configurazione!");
                         val += max;
+                    }
                     left++;
                 }
-                while (cell.j > right) {
+                max = 0;
+                while (right > cell.j) {
                     if (max < max_config)
                         max++;
-                    if (stateBoard[cell.i][right] == player)
+                    if (stateBoard[cell.i][right] == player) {
                         val += max;
+                        //Debug.breakpoint();
+                    }
                     right--;
                 }
-                //System.err.println("value of horizontal grid: "+ val);
+                //System.err.println("Orizzontale: " + val);
                 return val;
             }
         }
@@ -194,10 +204,12 @@ public class Evaluate {
                 if (p != player && p != CXCellState.FREE)
                     break;
             }
-            if (upper - lower + 1 < X)
+            if (lower - upper + 1 < X){
+                //Debug.breakpoint();
                 return 0;
+            }
             else {
-                int max_config = upper - lower - X + 2, max = 0;
+                int max_config = lower - upper - X + 2, max = 0;
                 val = max_config;
                 while (lower > cell.i) {
                     if (max < max_config)
@@ -207,6 +219,7 @@ public class Evaluate {
                     lower--;
                     left++;
                 }
+                max = 0;
                 while (upper < cell.i) {
                     if (max < max_config)
                         max++;
@@ -215,6 +228,7 @@ public class Evaluate {
                     upper++;
                     right--;
                 }
+                //System.err.println("Diagonale positiva: " + val);
                 return val;
             }
         } else {
@@ -235,10 +249,10 @@ public class Evaluate {
                 if (p != player && p != CXCellState.FREE)
                     break;
             }
-            if (upper - lower + 1 < X)
+            if (lower - upper + 1 < X)
                 return 0;
             else {
-                int max_config = upper - lower - X + 2, max = 0;
+                int max_config = lower - upper - X + 2, max = 0;
                 val = max_config;
                 while (lower > cell.i) {
                     if (max < max_config)
@@ -248,6 +262,7 @@ public class Evaluate {
                     lower--;
                     right--;
                 }
+                max = 0;
                 while (upper < cell.i) {
                     if (max < max_config)
                         max++;
@@ -256,6 +271,7 @@ public class Evaluate {
                     upper++;
                     left++;
                 }
+                //System.err.println("Diagonale negativa: " + val);
                 return val;
             }
         }
