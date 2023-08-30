@@ -23,6 +23,7 @@ public class TreeNode {
     this.cell = cell;
     this.Leaf = false;
     this.childNodes = new LinkedList<>();
+    this.Moves = new LabeledMove[0];
   }
 
   public void addChild(TreeNode childNode) {
@@ -55,7 +56,7 @@ public class TreeNode {
 
   /**
    * 
-   * @param cell the move's cell to search for
+   * @param move the move's cell to search for
    * @return the child of the node containing <code> cell </code>'s move, if it
    *         exists
    */

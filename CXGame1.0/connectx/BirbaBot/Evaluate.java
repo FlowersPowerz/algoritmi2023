@@ -9,20 +9,18 @@ import connectx.CXCellState;
 
 public class Evaluate {
     private final int M, N, X;
-    private CXCellState[][] tmpBoard;
-    private CXBoard Board;
+    //private CXCellState[][] stateBoard;
 
     private final int Vertical = 0;
     private final int Horizontal = 1;
     private final int PosDiagonal = 2;
     private final int NegDiagonal = 3;
 
-    public Evaluate(int M, int N, int X, CXBoard B, CXCellState[][] tmpBoard) {
+    public Evaluate(int M, int N, int X) {
         this.M = M;
         this.N = N;
         this.X = X;
-        this.Board = B;
-        this.tmpBoard = tmpBoard;
+        //this.stateBoard = stateBoard;
     }
 
     public boolean isWinningPosition(CXCell cell, CXCellState[][] board) {
@@ -47,7 +45,7 @@ public class Evaluate {
             n++;
         if (n >= X)
             return true;
-
+        
         // Diagonal check
         n = 1;
         for (int k = 1; i - k >= 0 && j - k >= 0 && board[i - k][j - k] == s; k++)
@@ -56,7 +54,7 @@ public class Evaluate {
             n++; // forward check
         if (n >= X)
             return true;
-
+        
         // Anti-diagonal check
         n = 1;
         for (int k = 1; i - k >= 0 && j + k < N && board[i - k][j + k] == s; k++)
@@ -65,13 +63,13 @@ public class Evaluate {
             n++; // forward check
         if (n >= X)
             return true;
-
+        
         return false;
     }
 
-    public int get_helpfulness(CXCell cell) {
-        return evaluateColumn(cell, CXCellState.P1)
-                + evaluateColumn(cell, CXCellState.P2);
+    public int get_helpfulness(CXCellState[][] stateBoard, CXCell cell) {
+        return evaluateColumn(stateBoard, cell, CXCellState.P1)
+                + evaluateColumn(stateBoard, cell, CXCellState.P2);
     }
 
     /**
@@ -80,20 +78,20 @@ public class Evaluate {
      * @param player
      * @return
      */
-    public int evaluateColumn(CXCell cell, CXCellState player) {
+    public int evaluateColumn(CXCellState[][] stateBoard, CXCell cell, CXCellState player) {
         int helpfulness = 0;
         boolean diagonals = true;
         // placing the piece where we are contemplating is done by alphabeta
         if (M >= X) {
-            helpfulness += count(cell, player, Vertical);
+            helpfulness += count(stateBoard, cell, player, Vertical);
         } else
             diagonals = false;
         if (N >= X) {
-            helpfulness += count(cell, player, Horizontal);
+            helpfulness += count(stateBoard, cell, player, Horizontal);
         } else
             diagonals = false;
         if (diagonals)
-            helpfulness += count(cell, player, PosDiagonal) + count(cell, player, NegDiagonal);
+            helpfulness += count(stateBoard, cell, player, PosDiagonal) + count(stateBoard, cell, player, NegDiagonal);
         return helpfulness;
     }
 
@@ -107,7 +105,7 @@ public class Evaluate {
      * @param area
      * @return <code> cell </code>'s value within grid's area
      */
-    private int count(CXCell cell, CXCellState player, int area) {
+    private int count(CXCellState[][] stateBoard, CXCell cell, CXCellState player, int area) {
         if (area == Vertical) {
             int val, lower;
             int upperBound = Math.max(0, cell.i - X + 1);
@@ -116,89 +114,95 @@ public class Evaluate {
             // sotto alla mossa appena fatta ci sono i gettoni dei giocatori, sopra sono
             // celle libere
             for (lower = cell.i; lower < lowerBound; lower++) {
-                CXCellState p = tmpBoard[lower][cell.j + 1];
-                if (p != player || p != CXCellState.FREE)
+                CXCellState p = stateBoard[lower + 1][cell.j];
+                if (p != player && p != CXCellState.FREE)
                     break;
             }
             if (lower - upperBound + 1 < X)
                 return 0;
             else {
-                int max_config = val = lower - upperBound - X + 1, max = 0;
-                while (lower < cell.i) {
+                int max_config = lower - upperBound - X + 2, max = 0;
+                val = max_config;
+                while (lower > cell.i) {
                     if (max < max_config)
                         max++;
-                    if (tmpBoard[lower][cell.j] == player)
+                    if (stateBoard[lower][cell.j] == player)
                         val += max;
-                    lower++;
+                    lower--;
                 }
             }
             return val;
         }
         if (area == Horizontal) {
             int right, left, val;
-            int leftBound = Math.min(0, cell.j - X + 1);
-            int rightBound = Math.max(N - 1, cell.j + X - 1);
+            int leftBound = Math.max(0, cell.j - X + 1);
+            int rightBound = Math.min(N - 1, cell.j + X - 1);
             // la furbata per il check verticale non si può fare, tocca trovare il range e
             // poi valutare
             for (left = cell.j; left > leftBound; left--) {
-                CXCellState p = tmpBoard[cell.i][left - 1];
-                if (p != player || p != CXCellState.FREE)
+                CXCellState p = stateBoard[cell.i][left - 1];
+                if (p != player && p != CXCellState.FREE)
                     break;
             }
             for (right = cell.j; right < rightBound; right++) {
-                CXCellState p = tmpBoard[cell.i][right + 1];
-                if (p != player || p != CXCellState.FREE)
+                CXCellState p = stateBoard[cell.i][right + 1];
+                if (p != player && p != CXCellState.FREE)
                     break;
             }
+            //System.err.println("numero cicli eseguiti: "+i);
+            //System.err.println("stateBoard[" + cell.i+ "]["+ cell.j +"]");
+            //System.err.println("right: "+ right);
+            //System.err.println("left: "+ left);
             if (right - left + 1 < X)
                 return 0;
             else {
-                int max_config = right - left - X + 1, max = 0;
+                int max_config = right - left - X + 2, max = 0;
                 val = max_config;
                 while (left < cell.j) {
                     if (max < max_config)
                         max++;
-                    if (tmpBoard[left][cell.j] == player)
+                    if (stateBoard[cell.i][left] == player)
                         val += max;
                     left++;
                 }
                 while (cell.j > right) {
                     if (max < max_config)
                         max++;
-                    if (tmpBoard[right][cell.j] == player)
+                    if (stateBoard[cell.i][right] == player)
                         val += max;
                     right--;
                 }
+                //System.err.println("value of horizontal grid: "+ val);
                 return val;
             }
         }
         if (area == PosDiagonal) {
             // diagonale positiva è così: (/)
             int right, left, upper, lower, val;
-            int leftBound = Math.min(0, cell.j - X + 1);
-            int rightBound = Math.max(N - 1, cell.j + X - 1);
+            int leftBound = Math.max(0, cell.j - X + 1);
+            int rightBound = Math.min(N - 1, cell.j + X - 1);
             int upperBound = Math.max(0, cell.i - X + 1);
             int lowerBound = Math.min(M - 1, cell.i + X - 1);
 
             for (lower = cell.i, left = cell.j; left > leftBound && lower < lowerBound; left--, lower++) {
-                CXCellState p = tmpBoard[lower + 1][left - 1];
-                if (p != player || p != CXCellState.FREE)
+                CXCellState p = stateBoard[lower + 1][left - 1];
+                if (p != player && p != CXCellState.FREE)
                     break;
             }
             for (upper = cell.i, right = cell.j; right < rightBound && upper > upperBound; right++, upper--) {
-                CXCellState p = tmpBoard[upper - 1][right + 1];
-                if (p != player || p != CXCellState.FREE)
+                CXCellState p = stateBoard[upper - 1][right + 1];
+                if (p != player && p != CXCellState.FREE)
                     break;
             }
             if (upper - lower + 1 < X)
                 return 0;
             else {
-                int max_config = upper - lower - X + 1, max = 0;
+                int max_config = upper - lower - X + 2, max = 0;
                 val = max_config;
                 while (lower > cell.i) {
                     if (max < max_config)
                         max++;
-                    if (tmpBoard[lower][left] == player)
+                    if (stateBoard[lower][left] == player)
                         val += max;
                     lower--;
                     left++;
@@ -206,7 +210,7 @@ public class Evaluate {
                 while (upper < cell.i) {
                     if (max < max_config)
                         max++;
-                    if (tmpBoard[upper][right] == player)
+                    if (stateBoard[upper][right] == player)
                         val += max;
                     upper++;
                     right--;
@@ -216,30 +220,30 @@ public class Evaluate {
         } else {
             // la diagonale negativa è così: (\)
             int right, left, upper, lower, val;
-            int leftBound = Math.min(0, cell.j - X + 1);
-            int rightBound = Math.max(N - 1, cell.j + X - 1);
+            int leftBound = Math.max(0, cell.j - X + 1);
+            int rightBound = Math.min(N - 1, cell.j + X - 1);
             int upperBound = Math.max(0, cell.i - X + 1);
             int lowerBound = Math.min(M - 1, cell.i + X - 1);
 
             for (lower = cell.i, right = cell.j; right < rightBound && lower < lowerBound; right++, lower++) {
-                CXCellState p = tmpBoard[lower + 1][right + 1];
-                if (p != player || p != CXCellState.FREE)
+                CXCellState p = stateBoard[lower + 1][right + 1];
+                if (p != player && p != CXCellState.FREE)
                     break;
             }
             for (upper = cell.i, left = cell.j; left > leftBound && upper > upperBound; left--, upper--) {
-                CXCellState p = tmpBoard[upper - 1][left - 1];
-                if (p != player || p != CXCellState.FREE)
+                CXCellState p = stateBoard[upper - 1][left - 1];
+                if (p != player && p != CXCellState.FREE)
                     break;
             }
             if (upper - lower + 1 < X)
                 return 0;
             else {
-                int max_config = upper - lower - X + 1, max = 0;
+                int max_config = upper - lower - X + 2, max = 0;
                 val = max_config;
                 while (lower > cell.i) {
                     if (max < max_config)
                         max++;
-                    if (tmpBoard[lower][right] == player)
+                    if (stateBoard[lower][right] == player)
                         val += max;
                     lower--;
                     right--;
@@ -247,7 +251,7 @@ public class Evaluate {
                 while (upper < cell.i) {
                     if (max < max_config)
                         max++;
-                    if (tmpBoard[upper][left] == player)
+                    if (stateBoard[upper][left] == player)
                         val += max;
                     upper++;
                     left++;
