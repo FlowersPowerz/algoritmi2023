@@ -5,7 +5,11 @@ import connectx.CXCellState;
 
 public class Debug {
 
-    // ... Previous code ...
+    public static void printMoves (LabeledMove[] moves) {
+        for (LabeledMove i : moves) {
+            System.err.println("Mossa: " + i.getMove() + ", Valore: " + i.getValue());
+        }
+    }
 
     /**
      * Utility which prints the current state of the table to the standard error output,
@@ -18,11 +22,11 @@ public class Debug {
         int M = stateBoard.length;
         int N = stateBoard[0].length;
 
-        class Printable {
+        class PrintValueTable {
             final CXCellState state;
             final int value;
 
-            public Printable(CXCellState state, int value) {
+            public PrintValueTable(CXCellState state, int value) {
                 this.state = state;
                 this.value = value;
             }
@@ -46,16 +50,16 @@ public class Debug {
             }
         }
 
-        Printable[][] printable = new Printable[M][N];
+        PrintValueTable[][] printable = new PrintValueTable[M][N];
 
         for (int i = 0; i < M; i++) {
             for (int j = 0; j < N; j++) {
-                printable[i][j] = new Printable(stateBoard[i][j], -1);
+                printable[i][j] = new PrintValueTable(stateBoard[i][j], -1);
             }
         }
 
         for (LabeledMove move : moves) {
-            printable[0][move.getMove()] = new Printable(CXCellState.FREE, move.getLabel());
+            printable[0][move.getMove()] = new PrintValueTable(CXCellState.FREE, move.getValue());
         }
 
         int length = 4 * N + 1;

@@ -1,9 +1,6 @@
 package connectx.BirbaBot;
 
-import connectx.CXBoard;
 import connectx.CXCell;
-import connectx.CXCellState;
-import connectx.CXGameState;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -13,7 +10,7 @@ import java.util.List;
 public class TreeNode {
 
   private boolean Leaf; // è una foglia del game tree?
-  public int label; // valore della cella
+  public int label; // etichetta della mossa calcolata dall'evaluate
   private CXCell cell; // cella della mossa giocata in questo nodo
   private LabeledMove[] Moves; // array delle possibili mosse giocabili al prossimo turno
   private List<TreeNode> childNodes; // lista effettiva dei nodi figli del nodo corrente nel game tree

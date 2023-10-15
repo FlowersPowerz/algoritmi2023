@@ -9,30 +9,23 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * BucketList:
- * 1) Evaluate
- * 	- Euristic function to calculate the relative value of any column.
- * 2) Search 
- * 	- AlphaBeta with Iterative Deepening
- *  - game Tree nodes sorting by best
- *	- Transposition Table
- *
- * TODO: check isWinningPosition: might be that stateBoard is not updated just by calling Board.markcolumn(col) 
- * [x] Evaluate con Euristica basta sulla helpfulness
- * [.] Transposition Table con le mosse già computate nei turni precedenti in modo da non visitare 
- *     ogni volta un nuovo Game Tree
- * [x] AlphaBeta + Iterative Deepening
- * [x] Move ordering
- */
-
-/**
  * Our Player
  */
 public class BirbaBot implements CXPlayer {
+	/**
+	 * TODO:
+	 * [.] Transposition Table con le mosse già computate nei turni precedenti in
+	 * modo da non visitare ogni volta un nuovo Game Tree
+	 * [.] ottimizzazione sul marcamento delle celle, al momento
+	 * {@link #makeMove(int, int)}
+	 * costa log(n), dove n sono il numero di colonne ancora libere
+	 */
+
 	// constants for the Euristics
 	private final int WIN = 100000;
-	private final int LOSS = -100000, BLOCK_OPP = WIN - 1;
-	// variables of initPlayer()
+	private final int LOSS = -100000;
+	private final int BLOCK_OPP = 99999;
+	// variables for initPlayer()
 	private int TIMEOUT;
 	private long START;
 	private int M, N, X; // M righe, N colonne, X allineamenti
@@ -43,9 +36,9 @@ public class BirbaBot implements CXPlayer {
 	private int meint, oppint;
 	private CXCellState me, opponent;
 	private CXGameState myWin, yourWin;
-	// private Set<CXCellState> AC; // Available Columns
+
 	/**
-	 * game tree nodes: bestmove and root of the game tree: root has to be the last
+	 * bestmove and root of the game tree where root has to be the last
 	 * move made by the opponent
 	 * if it's the first round, make a move and evaluate all the moves so root is
 	 * the best move among them
@@ -65,6 +58,7 @@ public class BirbaBot implements CXPlayer {
 		this.N = N;
 		this.X = X;
 
+		Board = new CXBoard(M, N, X);
 		stateBoard = new CXCellState[M][N];
 
 		TIMEOUT = timeout_in_secs;
@@ -90,22 +84,25 @@ public class BirbaBot implements CXPlayer {
 		lastOppMove = B.getLastMove();
 		// update our Board and stateBoard
 		if (lastOppMove != null) {
-			//makeMove(lastOppMove.j, 0);
-			Board = B.copy();
-			stateBoard = B.getBoard();
+			// entra qui anche nel caso in cui sia il nostro primo turno e partiamo secondi
+			makeMove(lastOppMove.j, 0);
 		}
+		System.err.println("====================================");
 		// not the first turn
 		if (bestMove != null && lastOppMove != null) {
 			TreeNode myOppMove = bestMove.getChildByCell(lastOppMove);
 			// ho già calcolato la migliore mossa: aggiorna root
 			if (myOppMove != null) {
+				System.err.println("CACHE HIT");
 				root = myOppMove;
+				// TODO: gestione casi di cache hit -> prendere il figlio con la label +
+				// grande(che è uguale a quella di root, si spera)
 			}
 			// altrimenti prendo il sottoalbero radicato nell'ultima mossa dell'avversario
 			else {
+				System.err.println("CACHE MISS");
 				root = new TreeNode(lastOppMove);
 				GenerateMoveList(root);
-				Debug.printValueTable(stateBoard, root.getMoves());
 			}
 		}
 		// first turn
@@ -116,41 +113,38 @@ public class BirbaBot implements CXPlayer {
 				stateBoard = B.getBoard();
 				bestMove = new TreeNode(makeMove(N / 2, 0));
 				GenerateMoveList(bestMove);
-				Debug.printValueTable(stateBoard, bestMove.getMoves());
-				// root = new TreeNode(makeMove(bestMove.getMoves()[0].getMove()));
-				makeMove(bestMove.getCell().j, 0);
 				return bestMove.getCell().j;
-				// second round
-			} else {
+			}
+			// second round
+			else {
 				Board = B.copy();
 				stateBoard = B.getBoard();
-				root = new TreeNode(Board.getLastMove());
+				root = new TreeNode(lastOppMove);
 				GenerateMoveList(root);
 			}
 		}
 		// start iterative deepening
 		// try {
-			IterativeDeepening(root, me, 10);
+		IterativeDeepening(root, me, M * N, B);
 		// } catch (Exception e) {
-		// 	System.err.println("Exception occurred, printing table");
-		// 	Debug.printTable(stateBoard);
-		// 	makeMove(bestMove.getCell().j);
-		// 	return bestMove.getCell().j;
+		// System.err.println("Exception occurred, printing table");
 		// }
+		// System.err.println("etichetta: " + bestMove.label);
 		makeMove(bestMove.getCell().j, 0);
 		return bestMove.getCell().j;
 	}
 
 	/**
 	 * Should only be called by {@link #selectColumn(CXBoard)}, this function
-	 * searches the game tree in a BFS manner using AlphaBeta algorithm
-	 * Updates <code>bestMove</code> only when all nodes of same depth are visited
+	 * searches the game tree in a DFS manner using AlphaBeta algorithm at
+	 * increasing depths and
+	 * updates <code>bestMove</code> only when all nodes of same depth are visited
 	 * 
 	 * @param T      root node of the game tree
 	 * @param player player who's allowed to move
 	 * @param depth  depth of search
 	 */
-	private void IterativeDeepening(TreeNode T, CXCellState player, int depth) {
+	private void IterativeDeepening(TreeNode T, CXCellState player, int depth, CXBoard B) {
 		int alpha = -Integer.MAX_VALUE; // alpha = -oo
 		int beta = Integer.MAX_VALUE; // beta = +oo
 		int eval = alpha, bestMoveValue = eval;
@@ -161,35 +155,41 @@ public class BirbaBot implements CXPlayer {
 		for (int d = 1; d <= depth; d++) {
 			nodeCount++;
 			checktime();
-			System.err.println("depth: " + d);
+			System.err.println("DEPTH: " + d);
+			// la Board viene sporcata quando passa a una depth più grande
+
 			// generate or get already generated move list
 			LabeledMove[] children = T.getMoves();
-			// if this node has not been discovered yet generate its moves
+			// should be a useless check since we generate them in select cell
 			if (children.length == 0) {
 				GenerateMoveList(T);
 				children = T.getMoves();
 			}
-			if (children.length == 1) {
+			Debug.printMoves(children);
+			if (children.length == 1 && children[0].getValue() == WIN
+					|| children.length == 1 && children[0].getValue() == LOSS) {
 				alphabeta_start = false;
-				if (T.getMoves()[0].getLabel() == WIN) {
-					if (player == me)
-						eval = WIN - Board.numOfMarkedCells();
-					else
-						eval = LOSS + Board.numOfMarkedCells();
-				} else {
-					if (player == me)
-						eval = LOSS + Board.numOfMarkedCells();
-					else
-						eval = WIN - Board.numOfMarkedCells();
-				}
+				if (children[0].getValue() == WIN)
+					eval = WIN - Board.numOfMarkedCells();
+				else
+					eval = LOSS + Board.numOfMarkedCells();
+				// TODO: ho un caso molto particolare
+				// nel 3*3 dove ho una colonna che se giocata è perdente, mentre una è piena.
+				// GenerateMoveList crea quindi un'array di un singolo elemento che non è la
+				// mossa vincente, ma viene valutata come tale.
 				bestMove = new TreeNode(makeMove(children[0].getMove(), 3));
+				undoMove();
 				bestMoveValue = eval;
 				T.label = bestMoveValue;
+				break;
 			}
+
 			if (alphabeta_start) {
-				for (LabeledMove i : T.getMoves()) { // foreach move in T.Moves
+				for (LabeledMove i : children) { // foreach move in T.Moves
 					// make this move in the list and add it to the game tree
-					TreeNode child = new TreeNode(makeMove(i.getMove(), 3));
+					// Debug.printTable(stateBoard);
+					CXCell move = makeMove(i.getMove(), 3);
+					TreeNode child = new TreeNode(move);
 					if (Board.gameState() != CXGameState.OPEN)
 						child.updateLeaf();
 					T.addChild(child);
@@ -200,6 +200,7 @@ public class BirbaBot implements CXPlayer {
 					alpha = Math.max(eval, alpha);
 
 					undoMove();
+					System.err.println("mossa " + child.getCell().j + ", etichetta: " + child.label);
 					if (eval > bestMoveValue) {
 						bestMove = child;
 						bestMoveValue = eval;
@@ -210,13 +211,6 @@ public class BirbaBot implements CXPlayer {
 					}
 				}
 			}
-			// fai partire alpahabeta
-			// eval = AlphaBeta(T, player, alpha, beta, d);
-			// if (eval > bestMoveValue) {
-			// bestMoveValue = eval;
-			// bestMove = T;
-			// }
-			// Debug.printTable(stateBoard);
 		}
 	}
 
@@ -239,37 +233,33 @@ public class BirbaBot implements CXPlayer {
 		checktime();
 		// siamo in una configurazione finale oppure la visita in profondità è finita
 		if (T.isLeaf() || depth == 0) {
-			// System.err.println("ramo evaluate");
-			// Debug.printTable(stateBoard);
 			T.label = evaluate(T);
 			return T.label;
 		}
 		// generate or get already generated move list
 		LabeledMove[] children = T.getMoves();
 		// if this node has not been discovered yet generate its moves
-		if (children.length == 0) { 	
+		if (children.length == 0) {
 			GenerateMoveList(T);
 			children = T.getMoves();
 		}
-		if (children.length == 1) {
-			if (T.getMoves()[0].getLabel() == WIN) {
-				if (player == me)
-					return WIN - Board.numOfMarkedCells();
-				else
-					return LOSS + Board.numOfMarkedCells();
-			} else {
-				if (player == me)
-					return LOSS + Board.numOfMarkedCells();
-				else
-					return WIN - Board.numOfMarkedCells();
-			}
+		// Debug.printMoves(children);
+		if (children.length == 1 && children[0].getValue() == WIN) {
+			if (player == me)
+				return WIN - Board.numOfMarkedCells();
+			else
+				return LOSS + Board.numOfMarkedCells();
+		}
+		if (children.length == 1 && children[0].getValue() == LOSS) {
+			if (player == me)
+				return LOSS + Board.numOfMarkedCells();
+			else
+				return WIN - Board.numOfMarkedCells();
 		}
 		int eval;
 		// Our player is maximizing
 		if (player == me) {
-			// Debug.breakpoint();
 			eval = -Integer.MAX_VALUE; // eval = -oo
-			//System.err.println("ramo max");
 			for (LabeledMove i : children) { // foreach move in T.Moves
 				// make this move in the list and add it to the game tree
 				TreeNode child = new TreeNode(makeMove(i.getMove(), 1));
@@ -280,9 +270,11 @@ public class BirbaBot implements CXPlayer {
 				// calculated by AlphaBeta
 				eval = Math.max(eval, AlphaBeta(child, opponent, alpha, beta, depth - 1));
 				alpha = Math.max(eval, alpha);
+
 				undoMove();
+
 				if (beta <= alpha) {
-					System.err.println("cutoff");
+					//System.err.println("cutoff");
 					break;
 				}
 			}
@@ -290,7 +282,6 @@ public class BirbaBot implements CXPlayer {
 		// Opponent minimizing
 		else {
 			eval = Integer.MAX_VALUE; // eval = +oo
-			//System.err.println("ramo min");
 			for (LabeledMove i : children) { // foreach move in T.Moves
 				// make this move in the list and add it to the game tree
 				TreeNode child = new TreeNode(makeMove(i.getMove(), 1));
@@ -301,9 +292,11 @@ public class BirbaBot implements CXPlayer {
 				// calculated by AlphaBeta
 				eval = Math.min(eval, AlphaBeta(child, me, alpha, beta, depth - 1));
 				beta = Math.min(eval, beta);
+
 				undoMove();
+
 				if (beta <= alpha) {
-					System.err.println("cutoff");
+					//System.err.println("cutoff");
 					break;
 				}
 			}
@@ -313,17 +306,20 @@ public class BirbaBot implements CXPlayer {
 	}
 
 	/**
-	 * Inizializza le mosse possibili del nodo prima di entrare nel ciclo for di
+	 * Genera le mosse possibili del nodo prima di entrare nel ciclo for di
 	 * {@link #AlphaBeta(TreeNode, CXCellState, int, int, int)}, ordinandole in
 	 * ordine decrescente di
 	 * valore secondo l'euristica.
-	 * 1) Se esiste una mossa che ci fa vincere immediatamente, T.moves avrà solo quella mossa valuata a <code>WIN</code>
-	 * 2) Se esiste una una mossa che fa vincere immediatamente l'avversario, essa sarà valuata a <code>BLOCK_OPP</code>
-	 * 3) Se esistono più di due mosse vincenti per l'avversario, T.moves avrà una sola mossa valuata a <code>LOSS</code>
-	 * 4) Se la mossa porta ad un pareggio(ovvero è l'ultima mossa giocabile) viene valuata a 0
+	 * 1) Se esiste una mossa che ci fa vincere immediatamente, T.moves avrà solo
+	 * quella mossa valuata a <code>WIN</code>
+	 * 2) Se esiste una una mossa che fa vincere immediatamente l'avversario, essa
+	 * sarà valuata a <code>BLOCK_OPP</code>
+	 * 3) Se esistono più di due mosse vincenti per l'avversario, T.moves avrà una
+	 * sola mossa valuata a <code>LOSS</code>
+	 * 4) Se la mossa porta ad un pareggio viene valuata a 0
 	 * 
-	 * @param T      nodo il cui campo <code> T.Moves </code> deve essere
-	 *               inizializzato
+	 * @param T nodo il cui campo <code> T.Moves </code> deve essere
+	 *          inizializzato
 	 */
 	private void GenerateMoveList(TreeNode T) {
 		Integer[] AM = Board.getAvailableColumns();
@@ -336,7 +332,7 @@ public class BirbaBot implements CXPlayer {
 			}
 			// classico swap
 			if (moves.length == 2) {
-				if (moves[0].getLabel() < moves[1].getLabel()) {
+				if (moves[0].getValue() < moves[1].getValue()) {
 					LabeledMove tmp = moves[0];
 					moves[0] = moves[1];
 					moves[1] = tmp;
@@ -344,6 +340,7 @@ public class BirbaBot implements CXPlayer {
 					return;
 				}
 			}
+			// mosse in ordine decrescente
 			LabeledMove.radixSort(moves, moves.length);
 			T.updateMoves(moves);
 		} else
@@ -351,9 +348,8 @@ public class BirbaBot implements CXPlayer {
 	}
 
 	/**
-	 * Must only be called when generating Moves in
-	 * {@link #GenerateMoveList(TreeNode, CXCellState)} to
-	 * explore with alphabeta.
+	 * Called by {@link #GenerateMoveList(TreeNode, CXCellState)} to generate moves
+	 * worth exploring
 	 * REMEMBER: It is better to win than to simply block the opponent: how do I
 	 * translate it to values? For now: win = 100000, opponent win = 99999
 	 * 
@@ -369,14 +365,18 @@ public class BirbaBot implements CXPlayer {
 			// We should always play a column on which the opponent has a winning position
 			// in the bottom of the column.
 			if (Board.gameState() != CXGameState.OPEN) {
+
 				if (Board.gameState() == myWin) {
 					LabeledMove[] win = new LabeledMove[1];
 					win[0] = new LabeledMove(WIN, move);
+					undoMove();
 					return win;
+
 				} else if (Board.gameState() == yourWin) {
 					WorthMoves.add(new LabeledMove(BLOCK_OPP, move));
 					add_move = false;
 					oppWinningMoves++;
+
 				} else {
 					WorthMoves.add(new LabeledMove(0, move));
 					add_move = false;
@@ -387,22 +387,25 @@ public class BirbaBot implements CXPlayer {
 			// is worth evaluating
 			if (!Board.fullColumn(col) && Board.gameState() == CXGameState.OPEN) {
 				makeMove(col, 2);
-				// corner case: only 1 column available and we lose by making move
+				// edge case: only 1 column available and we lose by making move
 				if (Board.gameState() == yourWin && AM.length == 1) {
 					LabeledMove[] loss = new LabeledMove[1];
 					loss[0] = new LabeledMove(LOSS, move);
+					undoMove();
+					undoMove();
 					return loss;
-				}
-				else if (Board.gameState() == yourWin){
+
+				} else if (Board.gameState() == yourWin) {
 					add_move = false;
 				}
 				undoMove();
 			}
 			// If the opponent has more than two directly playable winning positions, then
-			// we cannot do anything and we will lose.
+			// there's nothing we can do :( NAPOLEONE INSEGNA
 			if (oppWinningMoves >= 2) {
 				LabeledMove[] loss = new LabeledMove[1];
 				loss[0] = new LabeledMove(LOSS, move);
+				undoMove();
 				return loss;
 			}
 			// after all the checks, just add move to the list
@@ -463,6 +466,14 @@ public class BirbaBot implements CXPlayer {
 		return eval;
 	}
 
+	/**
+	 * Makes the move on our <code>Board</code> and <code>stateBoard</code>
+	 * using the markcolumn() function provided by CXBoard
+	 * 
+	 * @param col
+	 * @param funzione
+	 * @return the <code>CXCell</code> type cell of the move
+	 */
 	private CXCell makeMove(int col, int funzione) {
 		if (Board.gameState() == CXGameState.OPEN && !Board.fullColumn(col)) {
 			Board.markColumn(col);
@@ -470,14 +481,16 @@ public class BirbaBot implements CXPlayer {
 			stateBoard[move.i][move.j] = move.state;
 			return move;
 		} else {
-			if (funzione == 0)
-				System.err.println("OPS! makeMove chiamato da select_column");
-			else if (funzione == 1)
-				System.err.println("OPS! makeMove chiamato da Alphabeta");
-			else if (funzione == 2)
-				System.err.println("OPS! makeMove chiamato da possibleNonLosingMoves");
-			else if (funzione == 3)
-				System.err.println("OPS! makeMove chiamato da IterativeDeepening");
+			switch (funzione) {
+				case 0:
+					System.err.println("OPS! makeMove chiamato da select_column");
+				case 1:
+					System.err.println("OPS! makeMove chiamato da Alphabeta");
+				case 2:
+					System.err.println("OPS! makeMove chiamato da possibleNonLosingMoves");
+				case 3:
+					System.err.println("OPS! makeMove chiamato da IterativeDeepening");
+			}
 			if (Board.gameState() != CXGameState.OPEN) {
 				System.err.println("hai provato a giocare dopo che la partita è finita");
 			}
@@ -487,8 +500,15 @@ public class BirbaBot implements CXPlayer {
 			if (col < 0 && col > N) {
 				System.err.println("hai cagato fuori dal vaso");
 			}
+			if (Board.currentPlayer() == meint)
+				System.err.println("tocca a noi");
+			else
+				System.err.println("tocca all'avversario");
 			Debug.printTable(stateBoard);
-			return null;
+			Board.markColumn(col);
+			CXCell move = Board.getLastMove();
+			stateBoard[move.i][move.j] = move.state;
+			return move;
 		}
 	}
 
@@ -496,17 +516,6 @@ public class BirbaBot implements CXPlayer {
 		CXCell move = Board.getLastMove();
 		stateBoard[move.i][move.j] = CXCellState.FREE;
 		Board.unmarkColumn();
-	}
-
-	private void saveMove(TreeNode move) {
-		System.err.println("nodi visitati: " + nodeCount);
-		System.err.println("Move: " + move.getCell().j);
-		System.err.println("moveLabel: " + move.label);
-
-		for (TreeNode i : move.getChildNodes())
-			System.err.println("Valore dei figli di move: " + i.label);
-
-		root = bestMove;
 	}
 
 	/**
