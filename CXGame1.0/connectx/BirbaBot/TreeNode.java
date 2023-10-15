@@ -26,7 +26,7 @@ public class TreeNode {
     this.cell = cell;
     this.leaf = false;
     this.childNodes = new LinkedList<>();
-    this.Moves = new LabeledMove[0];
+    this.Moves = null;
   }
 
   public void addChild(TreeNode childNode) {

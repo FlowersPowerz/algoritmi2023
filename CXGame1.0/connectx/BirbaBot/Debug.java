@@ -1,5 +1,4 @@
 package connectx.BirbaBot;
-
 import java.util.Arrays;
 
 import connectx.CXCellState;
