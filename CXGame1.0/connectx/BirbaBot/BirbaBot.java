@@ -84,16 +84,12 @@ public class BirbaBot implements CXPlayer {
 		// update our Board and stateBoard
 		Board = B.copy();
 		stateBoard = B.getBoard();
-		// if (lastOppMove != null) {
-		// 	// entra qui anche nel caso in cui sia il nostro primo turno e partiamo secondi
-		// 	makeMove(lastOppMove.j, 0);
-		// }
-		System.err.println("====================================");
+		// System.err.println("====================================");
 		// not the first turn
 		if (bestMove != null && lastOppMove != null) {
 			// prendo il sottoalbero radicato nell'ultima mossa dell'avversario
-			System.err.println("CACHE MISS");
-			Debug.printTable(stateBoard);
+			// System.err.println("CACHE MISS");
+			// Debug.printTable(stateBoard);
 			root = new TreeNode(lastOppMove);
 			GenerateMoveList(root);
 		}
@@ -119,13 +115,11 @@ public class BirbaBot implements CXPlayer {
 		try {
 			IterativeDeepening(root, me, M * N - B.numOfMarkedCells(), B);
 		} catch (Exception e) {
-			System.err.println("Returning best move found yet");
+			// System.err.println("Returning best move found yet");
 		}
 
-		Debug.printTable(stateBoard);
-		System.err.println("best move: " + bestMove.getCell().j + ", label: " + bestMove.label);
-
-		makeMove(bestMove.getCell().j, 0);
+		// Debug.printTable(stateBoard);
+		// System.err.println("best move: " + bestMove.getCell().j + ", label: " + bestMove.label);
 
 		return bestMove.getCell().j;
 	}
@@ -157,7 +151,7 @@ public class BirbaBot implements CXPlayer {
 			int beta = Integer.MAX_VALUE; // beta = +oo
 			int bestMoveValue = alpha;
 
-			System.err.println("DEPTH: " + d);
+			// System.err.println("DEPTH: " + d);
 
 			// generate or get already generated move list
 			LabeledMove[] children = T.getMoves();
