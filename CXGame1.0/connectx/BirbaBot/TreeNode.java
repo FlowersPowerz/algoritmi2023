@@ -58,14 +58,13 @@ public class TreeNode {
    *         exists
    */
   public TreeNode getChildByCell(CXCell move) {
-    if (this.childNodes != null) {
-      for (TreeNode n : this.childNodes) {
-        if (n == null)
-          break;
-        // la cella della mossa è stata trovata, ritorna il nodo
-        if (n.getCell().i == move.i && n.getCell().j == move.j) {
-          return n;
-        }
+    if (this.childNodes.size() == 0)
+      return null;
+
+    for (TreeNode n : this.childNodes) {
+      // la cella della mossa è stata trovata, ritorna il nodo
+      if (n.getCell().i == move.i && n.getCell().j == move.j) {
+        return n;
       }
     }
     return null;

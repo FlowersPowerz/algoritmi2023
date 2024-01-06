@@ -15,6 +15,10 @@ public class LabeledMove implements Comparable<LabeledMove>{
         return this.move.j;
     }
 
+	public CXCell getCell() {
+		return move;
+	}
+
     public int getValue() {
         return this.value;
     }
@@ -24,46 +28,42 @@ public class LabeledMove implements Comparable<LabeledMove>{
         // Compare by value in ascending order (change the order if needed)
         return Integer.compare(other.getValue(), this.getValue());
     }
-    // Helper function to get the digit at a specific place for a value
-    private static int getDigit(int value, int place) {
-        return (Math.abs(value) / (int)Math.pow(10, place)) % 10;
-    }
-
-    // Counting sort for descending order
-    private static void countingSortDescending(LabeledMove array[], int size, int place) {
+    
+	// Using counting sort to sort the elements based on significant places in descending order
+    static private void countingSortDescending(LabeledMove array[], int size, int place) {
         LabeledMove[] output = new LabeledMove[size];
         int[] count = new int[10];
 
-        for (int i = 0; i < size; i++) {
-            int digit = getDigit(array[i].getValue(), place);
-            count[digit]++;
-        }
+        for (int i = 0; i < size; i++)
+            count[9 - ((array[i].value / place) % 10)]++; // Invert the counting for descending order
 
-        for (int i = 1; i < 10; i++) {
+        for (int i = 1; i < 10; i++)
             count[i] += count[i - 1];
-        }
 
         for (int i = size - 1; i >= 0; i--) {
-            int digit = getDigit(array[i].getValue(), place);
-            output[count[digit] - 1] = array[i];
-            count[digit]--;
+            output[count[9 - ((array[i].value / place) % 10)] - 1] = array[i];
+            count[9 - ((array[i].value / place) % 10)]--;
         }
 
         System.arraycopy(output, 0, array, 0, size);
     }
 
-    // Main function to implement radix sort in descending order for both positive and negative values
-    public static void radixSort(LabeledMove array[], int size) {
-        int maxDigits = 0;
-        for (int i = 0; i < size; i++) {
-            int numDigits = (int)(Math.log10(Math.abs(array[i].getValue())) + 1);
-            if (numDigits > maxDigits) {
-                maxDigits = numDigits;
-            }
-        }
+    // Function to get the largest element's value from an array
+    static private int getMax(LabeledMove array[], int n) {
+        int max = array[0].value;
+        for (int i = 1; i < n; i++)
+            if (array[i].value > max)
+                max = array[i].value;
+        return max;
+    }
 
-        for (int place = 0; place < maxDigits; place++) {
+    // Main function to implement radix sort in descending order
+    static public void radixSort(LabeledMove array[], int size) {
+        // Get maximum element's value
+        int max = getMax(array, size);
+
+        // Apply counting sort to sort elements based on place value.
+        for (int place = 1; max / place > 0; place *= 10)
             countingSortDescending(array, size, place);
-        }
     }
 }

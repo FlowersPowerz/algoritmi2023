@@ -1,22 +1,33 @@
 package connectx.BirbaBot;
+
 import java.util.Arrays;
 
 import connectx.CXCellState;
 
 public class Debug {
 
-    public static void printMoves (LabeledMove[] moves) {
+    public static void printMoves(LabeledMove[] moves) {
         for (LabeledMove i : moves) {
             System.err.println("Mossa: " + i.getMove() + ", Valore: " + i.getValue());
         }
     }
 
+    public static void printChildren(TreeNode root) {
+        int count = 0;
+        for (TreeNode i : root.getChildNodes()) {
+            System.err.println("figlio " + count + ", label -> " + i.label);
+            count++;
+        }
+    }
+
     /**
-     * Utility which prints the current state of the table to the standard error output,
+     * Utility which prints the current state of the table to the standard error
+     * output,
      * including values inside the free columns.
      *
      * @param stateBoard The state of the board to be printed.
-     * @param moves      Array of labeled moves representing values in the free columns.
+     * @param moves      Array of labeled moves representing values in the free
+     *                   columns.
      */
     public static void printValueTable(CXCellState[][] stateBoard, LabeledMove[] moves) {
         int M = stateBoard.length;
