@@ -1,24 +1,30 @@
 package connectx.BirbaBot;
 
 import connectx.CXCell;
+import connectx.CXCellState;
+
 import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Nodo del game tree, alla cella è assegnato un valore in base all'euristica
+ * Nodo del game tree
  */
 public class TreeNode {
-
-  private boolean Leaf; // è una foglia del game tree?
-  public int label; // etichetta della mossa calcolata dall'evaluate
-  private CXCell cell; // cella della mossa giocata in questo nodo
-  private LabeledMove[] Moves; // array delle possibili mosse giocabili al prossimo turno
-  private List<TreeNode> childNodes; // lista effettiva dei nodi figli del nodo corrente nel game tree
+  /** cella della mossa giocata in questo nodo */
+  private CXCell cell;
+  /** etichetta della mossa calcolata dalla visita con AlphaBeta */
+  public int label;
+  /** è una foglia del game tree? */
+  private boolean leaf;
+  /** array ordinato delle possibili mosse giocabili al prossimo turno */
+  private LabeledMove[] Moves;
+  /** lista effettiva dei nodi figli del nodo corrente nel game tree */
+  private List<TreeNode> childNodes;
 
   public TreeNode(CXCell cell) {
     this.label = 0;
     this.cell = cell;
-    this.Leaf = false;
+    this.leaf = false;
     this.childNodes = new LinkedList<>();
     this.Moves = new LabeledMove[0];
   }
@@ -40,7 +46,7 @@ public class TreeNode {
   }
 
   public void updateLeaf() {
-    this.Leaf = true;
+    this.leaf = true;
   }
 
   public CXCell getCell() {
@@ -48,7 +54,7 @@ public class TreeNode {
   }
 
   public boolean isLeaf() {
-    return this.Leaf;
+    return this.leaf;
   }
 
   /**
@@ -78,7 +84,15 @@ public class TreeNode {
     return childNodes;
   }
 
-  public int getChildnumber() {
-    return childNodes.size();
+  /**
+   * DISCLAIMER: every <code>TreeNode</code> cointains the cell that has already
+   * been played, so this method returns the player that has to make a move. e.g.
+   * <code>this.cell.state -> P1, but this method will return P2, which has to
+   * make a move from this node
+   * 
+   * @return the player whose turn is to play
+   */
+  public CXCellState getCurrentPlayer() {
+    return this.cell.state == CXCellState.P1 ? CXCellState.P2 : CXCellState.P1;
   }
 }
