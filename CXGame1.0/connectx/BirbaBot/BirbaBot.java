@@ -19,21 +19,24 @@ public class BirbaBot implements CXPlayer {
 	 * modo da non visitare ogni volta un nuovo Game Tree
 	 */
 
+	/** M rows, N columns, X alignments */
+	private int M, N, X;
+	// our copies of the game board
+	private CXBoard Board;
+	private CXCellState[][] stateBoard;
+	// variables for time management
+	private int TIMEOUT;
+	private long START;
+	// min and max visit depth
+	private int last_depth;
+	// variables for checking gamestate and cells state
+	private int meint;
+	private CXCellState me, opponent;
+	private CXGameState myWin, yourWin;
 	// constants for the Euristics
 	public static final int WIN = 100000;
 	public final int LOSS = 0;
 	private final int BLOCK_OPP = WIN - 1;
-	// variables for initPlayer()
-	private int TIMEOUT;
-	private long START;
-	private int M, N, X; // M righe, N colonne, X allineamenti
-	// our copies of the game board
-	private CXBoard Board;
-	private CXCellState[][] stateBoard;
-	// variables for checking gamestate and cells state
-	private int meint, oppint;
-	private CXCellState me, opponent;
-	private CXGameState myWin, yourWin;
 
 	/**
 	 * the best move found and the end of iterative deepening
@@ -60,17 +63,18 @@ public class BirbaBot implements CXPlayer {
 		stateBoard = new CXCellState[M][N];
 
 		TIMEOUT = timeout_in_secs;
+		last_depth = 0;
+
 		meint = first ? 0 : 1;
-		oppint = first ? 0 : 1;
-		myWin = first ? CXGameState.WINP1 : CXGameState.WINP2;
-		yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
 		me = first ? CXCellState.P1 : CXCellState.P2;
 		opponent = first ? CXCellState.P2 : CXCellState.P1;
+		myWin = first ? CXGameState.WINP1 : CXGameState.WINP2;
+		yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
 
-		util = new Evaluate(this.M, this.N, this.X);
 		bestMove = null;
-		nodeCount = 0;
 		root = null;
+		util = new Evaluate(M, N, X);
+		nodeCount = 0;
 	}
 
 	/* Selects the best move possible */
@@ -86,9 +90,13 @@ public class BirbaBot implements CXPlayer {
 		// not the first turn
 		if (bestMove != null && lastOppMove != null) {
 			// prendo il sottoalbero radicato nell'ultima mossa dell'avversario
-			// System.err.println("CACHE MISS");
-			root = new TreeNode(lastOppMove);
-			GenerateMoveList(root);
+			TreeNode chilNode = bestMove.getChildByCell(lastOppMove);
+			if (chilNode != null) {
+				root = chilNode;
+			} else {
+				root = new TreeNode(lastOppMove);
+				GenerateMoveList(root);
+			}
 		}
 		// first turn
 		else {
@@ -103,11 +111,14 @@ public class BirbaBot implements CXPlayer {
 				GenerateMoveList(root);
 			}
 		}
+
+		bestMove = null;
+
 		// start iterative deepening
 		try {
 			IterativeDeepening(root, me, M * N - B.numOfMarkedCells(), B);
 		} catch (TimeoutException e) {
-			if (bestMove == null) {
+			if (bestMove == null) { // Couldn't complete one shallow depth visit in time
 				System.err.println("Visited nodes: " + nodeCount);
 				return root.getMoves()[0].getCell().j;
 			} else {
@@ -135,14 +146,14 @@ public class BirbaBot implements CXPlayer {
 	 * @param depth  depth of search
 	 */
 	private void IterativeDeepening(TreeNode T, CXCellState player, int depth, CXBoard B) throws TimeoutException {
-		// differenziare OldBestMove da NewBestMove, la prima deve essere il
-		// risultato di una ricerca completa a profondità d, la seconda è quella
-		// calcolata fino a quel momento
-
-		// nella mia testa depth = 0 è la radice quindi se voglio fare una visita solo
-		// al
-		// primo livello del sottoalbero radicato in T la depth = 1
+		// root is depth = 0 so if I want to do a shallow depth visit, depth must be 1
 		for (int d = 1; d <= depth; d++) {
+			// from the root we can only make one move, wether it is a winning one or we simply have one column available: set bestMove and play the column
+			if (T.getMoves().length == 1) {
+				bestMove = new TreeNode(T.getMoves()[0].getCell());
+				break;
+			}
+
 			checktime();
 			nodeCount++;
 
@@ -150,33 +161,13 @@ public class BirbaBot implements CXPlayer {
 			int beta = Integer.MAX_VALUE; // beta = +oo
 			int bestMoveValue = alpha;
 
-			// generate or get already generated move list
-			LabeledMove[] children = T.getMoves();
-			// // should be a useless check since we generate them in select cell
-			// if (children.length == 0) {
-			// GenerateMoveList(T);
-			// children = T.getMoves();
-			// }
-
-			if (children.length == 1 && children[0].getValue() == WIN) {
-				// play the winnig move and evaluate it immediately
-				TreeNode child = new TreeNode(makeMove(children[0].getMove(), 1));
-				// child is a leaf node
-				child.updateLeaf();
-				child.label = evaluate(child);
-				T.addChild(child);
-
-				undoMove();
-
-				bestMove = child;
-				bestMoveValue = child.label;
-				T.label = bestMoveValue;
-				break;
-			}
+			// get already generated move list (we do that in select_column)
+			LabeledMove[] moves = T.getMoves();
+			// List<TreeNode> children = T.getChildNodes();
 
 			int eval = alpha;
-			TreeNode bestMove_yet = null; // migliore mossa trovata con alphabeta fin'ora
-			for (LabeledMove i : children) { // foreach move in T.Moves
+			TreeNode bestMove_yet = null;
+			for (LabeledMove i : moves) { // foreach move in T.Moves
 				checktime();
 				// make this move in the list and add it to the game tree
 				CXCell move = makeMove(i.getMove(), 3);
@@ -421,7 +412,7 @@ public class BirbaBot implements CXPlayer {
 	 * @param player current player
 	 * @return evaluation of the node
 	 */
-	private int evaluate(TreeNode T) {
+	private int evaluate(TreeNode T) throws TimeoutException {
 		// configurazione di gioco finale: uso un punteggio che va in base ai turni
 		// giocati per vincere/perdere
 		if (Board.gameState() != CXGameState.OPEN) {
@@ -449,9 +440,10 @@ public class BirbaBot implements CXPlayer {
 	 * @param player
 	 * @return
 	 */
-	private int EvaluateConfiguration(TreeNode T) {
+	private int EvaluateConfiguration(TreeNode T) throws TimeoutException {
 		int eval = 0;
 		for (Integer i : Board.getAvailableColumns()) {
+			checktime();
 			CXCell freeCell = makeMove(i, 1);
 			eval += util.evaluateColumn(stateBoard, freeCell, me);
 			eval -= util.evaluateColumn(stateBoard, freeCell, opponent);
