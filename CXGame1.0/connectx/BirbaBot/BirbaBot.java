@@ -5,8 +5,6 @@ import connectx.CXBoard;
 import connectx.CXCell;
 import connectx.CXCellState;
 import connectx.CXGameState;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -31,7 +29,7 @@ public class BirbaBot implements CXPlayer {
 	private CXBoard Board;
 	private CXCellState[][] stateBoard;
 	// variables for checking gamestate and cells state
-	private int meint, oppint;
+	private int meint;
 	private CXCellState me, opponent;
 	private CXGameState myWin, yourWin;
 
@@ -60,8 +58,8 @@ public class BirbaBot implements CXPlayer {
 		stateBoard = new CXCellState[M][N];
 
 		TIMEOUT = timeout_in_secs;
+
 		meint = first ? 0 : 1;
-		oppint = first ? 0 : 1;
 		myWin = first ? CXGameState.WINP1 : CXGameState.WINP2;
 		yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
 		me = first ? CXCellState.P1 : CXCellState.P2;
@@ -424,7 +422,7 @@ public class BirbaBot implements CXPlayer {
 	 * @param player current player
 	 * @return evaluation of the node
 	 */
-	private int evaluate(TreeNode T) {
+	private int evaluate(TreeNode T) throws TimeoutException {
 		// configurazione di gioco finale: uso un punteggio che va in base ai turni
 		// giocati per vincere/perdere
 		if (Board.gameState() != CXGameState.OPEN) {
@@ -452,9 +450,10 @@ public class BirbaBot implements CXPlayer {
 	 * @param player
 	 * @return
 	 */
-	private int EvaluateConfiguration(TreeNode T) {
+	private int EvaluateConfiguration(TreeNode T) throws TimeoutException {
 		int eval = 0;
 		for (Integer i : Board.getAvailableColumns()) {
+			checktime();
 			CXCell freeCell = makeMove(i, 1);
 			eval += util.evaluateColumn(stateBoard, freeCell, me);
 			eval -= util.evaluateColumn(stateBoard, freeCell, opponent);
@@ -525,7 +524,7 @@ public class BirbaBot implements CXPlayer {
 	 * maximum timeout time
 	 */
 	private void checktime() throws TimeoutException {
-		if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (98.0 / 100.0))
+		if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0))
 			throw new TimeoutException();
 	}
 
