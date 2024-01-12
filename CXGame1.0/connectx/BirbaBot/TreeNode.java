@@ -16,32 +16,40 @@ public class TreeNode {
   /** è una foglia del game tree? */
   private boolean leaf;
   /** array ordinato delle possibili mosse giocabili al prossimo turno */
-  private LabeledMove[] Moves;
+  private LabeledMove[] moves;
   /** lista effettiva dei nodi figli del nodo corrente nel game tree */
-  private List<TreeNode> childNodes;
+  private TreeNode[] children;
+  private int index;
 
   public TreeNode(CXCell cell) {
     this.label = 0;
     this.cell = cell;
     this.leaf = false;
-    this.childNodes = new LinkedList<>();
-    this.Moves = new LabeledMove[0];
+    this.moves = new LabeledMove[0];
+    this.children = new TreeNode[0];
   }
 
-  public void addChild(TreeNode childNode) {
-    this.childNodes.add(childNode);
+  public void addChild(TreeNode child) {
+    if (index < 0 || index > moves.length - 1) {
+      throw new RuntimeException("Invalid index value");
+  }
+    if (children.length == 0) {
+      children = new TreeNode[moves.length];
+    }
+    children[index] = child;
+    index++;
   }
 
   public int getMovesnumber() {
-    return Moves.length;
+    return moves.length;
   }
 
   public void updateMoves(LabeledMove[] sortedMoves) {
-    this.Moves = sortedMoves;
+    this.moves = sortedMoves;
   }
 
   public LabeledMove[] getMoves() {
-    return Moves;
+    return moves;
   }
 
   public void updateLeaf() {
@@ -63,10 +71,10 @@ public class TreeNode {
    *         exists
    */
   public TreeNode getChildByCell(CXCell move) {
-    if (this.childNodes.size() == 0)
+    if (this.children.length == 0)
       return null;
 
-    for (TreeNode n : this.childNodes) {
+    for (TreeNode n : this.children) {
       // la cella della mossa è stata trovata, ritorna il nodo
       if (n.getCell().i == move.i && n.getCell().j == move.j) {
         return n;
@@ -75,12 +83,8 @@ public class TreeNode {
     return null;
   }
 
-  public TreeNode getChild(int index) {
-    return childNodes.get(index);
-  }
-
-  public List<TreeNode> getChildNodes() {
-    return childNodes;
+  public TreeNode[] getChildren() {
+    return children;
   }
 
   /**

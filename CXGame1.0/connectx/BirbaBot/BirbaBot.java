@@ -5,6 +5,8 @@ import connectx.CXBoard;
 import connectx.CXCell;
 import connectx.CXCellState;
 import connectx.CXGameState;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -84,12 +86,14 @@ public class BirbaBot implements CXPlayer {
 		// not the first turn
 		if (bestMove != null && lastOppMove != null) {
 			// prendo il sottoalbero radicato nell'ultima mossa dell'avversario
-			// TreeNode chilNode = bestMove.getChildByCell(lastOppMove);
-			// if (chilNode != null) {
-			// 	root = chilNode;
-			// }
-			root = new TreeNode(lastOppMove);
-			GenerateMoveList(root);
+			TreeNode chilNode = bestMove.getChildByCell(lastOppMove);
+			if (chilNode != null) {
+				root = chilNode;
+			}
+			else {
+				root = new TreeNode(lastOppMove);
+				GenerateMoveList(root);
+			}
 		}
 		// first turn
 		else {
@@ -104,6 +108,8 @@ public class BirbaBot implements CXPlayer {
 				GenerateMoveList(root);
 			}
 		}
+
+		bestMove = null;
 		// start iterative deepening
 		try {
 			IterativeDeepening(root, me, M * N - B.numOfMarkedCells(), B);
@@ -152,20 +158,25 @@ public class BirbaBot implements CXPlayer {
 			int bestMoveValue = alpha;
 
 			// generate or get already generated move list
-			LabeledMove[] children = T.getMoves();
-			// // should be a useless check since we generate them in select cell
-			// if (children.length == 0) {
-			// GenerateMoveList(T);
-			// children = T.getMoves();
-			// }
+			LabeledMove[] moves = T.getMoves();
+			TreeNode[] children = T.getChildren();
 
-			if (children.length == 1 && children[0].getValue() == WIN) {
+			if (moves.length == 1) {
 				// play the winnig move and evaluate it immediately
-				TreeNode child = new TreeNode(makeMove(children[0].getMove(), 1));
-				// child is a leaf node
-				child.updateLeaf();
-				child.label = evaluate(child);
-				T.addChild(child);
+				CXCell cell = makeMove(moves[0].getMove(), 1);
+				
+				TreeNode child;
+				if (children.length == 0) {
+					child = children[0];
+					child.label = evaluate(child);
+				}
+				else {
+					child = new TreeNode(cell);
+					child.updateLeaf();
+					child.label = evaluate(child);
+					T.addChild(child);
+				}
+				
 
 				undoMove();
 
@@ -175,16 +186,26 @@ public class BirbaBot implements CXPlayer {
 				break;
 			}
 
-			int eval = alpha;
+			int eval = alpha, index = 0;
 			TreeNode bestMove_yet = null; // migliore mossa trovata con alphabeta fin'ora
-			for (LabeledMove i : children) { // foreach move in T.Moves
+			for (LabeledMove i : moves) { // foreach move in T.Moves
 				checktime();
+				CXCell cell = makeMove(i.getMove(), 1);
 				// make this move in the list and add it to the game tree
-				CXCell move = makeMove(i.getMove(), 3);
-				TreeNode child = new TreeNode(move);
-				if (Board.gameState() != CXGameState.OPEN)
-					child.updateLeaf();
-				T.addChild(child);
+				TreeNode child;
+				if (children.length > 0) {
+					child = children[index];
+					if (child == null) {
+						child = new TreeNode(cell);
+						GenerateMoveList(child);
+						T.addChild(child);
+					}
+				}
+				else {
+					child = new TreeNode(cell);
+					GenerateMoveList(child);
+					T.addChild(child);
+				}
 				// chiamo Alphabeta con depth decrementata (se ho d=1 Alphabeta(depth = 0) farà
 				// subito un evaluate dei figli di root)
 				// che aggiorna la bestMove se l'eval trovato è migliore di prima
@@ -192,6 +213,7 @@ public class BirbaBot implements CXPlayer {
 				alpha = Math.max(eval, alpha);
 
 				undoMove();
+				index++;
 
 				if (eval > bestMoveValue) {
 					bestMove_yet = child;
@@ -232,16 +254,12 @@ public class BirbaBot implements CXPlayer {
 			return T.label;
 		}
 		// generate or get already generated move list
-		LabeledMove[] children = T.getMoves();
-		// if this node has not been discovered yet generate its moves
-		if (children.length == 0) {
-			GenerateMoveList(T);
-			children = T.getMoves();
-		}
+		LabeledMove[] moves = T.getMoves();
+		TreeNode[] children = T.getChildren();
 
-		if (children.length == 1 && children[0].getValue() == WIN) {
+		if (moves.length == 1 && moves[0].getValue() == WIN) {
 			// play the winning move and evaluate it immediately
-			TreeNode child = new TreeNode(makeMove(children[0].getMove(), 1));
+			TreeNode child = new TreeNode(makeMove(moves[0].getMove(), 1));
 			// child is a leaf node
 			child.updateLeaf();
 			child.label = evaluate(child);
@@ -253,18 +271,29 @@ public class BirbaBot implements CXPlayer {
 			return T.label;
 		}
 
-		int eval;
+		int eval, index = 0;
 		// Our player is maximizing
 		if (player == me) {
 			eval = -Integer.MAX_VALUE; // eval = -oo
 
-			for (LabeledMove i : children) { // foreach move in T.Moves
+			for (LabeledMove i : moves) { // foreach move in T.Moves
 				checktime();
+				CXCell cell = makeMove(i.getMove(), 1);
 				// make this move in the list and add it to the game tree
-				TreeNode child = new TreeNode(makeMove(i.getMove(), 1));
-				if (Board.gameState() != CXGameState.OPEN)
-					child.updateLeaf();
-				T.addChild(child);
+				TreeNode child;
+				if (children.length > 0) {
+					child = children[index];
+					if (child == null) {
+						child = new TreeNode(cell);
+						GenerateMoveList(child);
+						T.addChild(child);
+					}
+				}
+				else {
+					child = new TreeNode(cell);
+					GenerateMoveList(child);
+					T.addChild(child);
+				}
 
 				// evaluate this move by taking the max value between current eval and value
 				// calculated by AlphaBeta
@@ -272,6 +301,7 @@ public class BirbaBot implements CXPlayer {
 				alpha = Math.max(eval, alpha);
 
 				undoMove();
+				index++;
 
 				if (beta <= alpha) {
 					break;
@@ -282,13 +312,24 @@ public class BirbaBot implements CXPlayer {
 		else {
 			eval = Integer.MAX_VALUE; // eval = +oo
 
-			for (LabeledMove i : children) { // foreach move in T.Moves
+			for (LabeledMove i : moves) { // foreach move in T.Moves
 				checktime();
+				CXCell cell = makeMove(i.getMove(), 1);
 				// make this move in the list and add it to the game tree
-				TreeNode child = new TreeNode(makeMove(i.getMove(), 1));
-				if (Board.gameState() != CXGameState.OPEN)
-					child.updateLeaf();
-				T.addChild(child);
+				TreeNode child;
+				if (children.length > 0) {
+					child = children[index];
+					if (child == null) {
+						child = new TreeNode(cell);
+						GenerateMoveList(child);
+						T.addChild(child);
+					}
+				}
+				else {
+					child = new TreeNode(cell);
+					GenerateMoveList(child);
+					T.addChild(child);
+				}
 
 				// evaluate this move by taking the min value between current eval and value
 				// calculated by AlphaBeta
@@ -296,6 +337,7 @@ public class BirbaBot implements CXPlayer {
 				beta = Math.min(eval, beta);
 
 				undoMove();
+				index++;
 
 				if (beta <= alpha) {
 					break;
@@ -310,7 +352,7 @@ public class BirbaBot implements CXPlayer {
 	 * Genera le mosse possibili del nodo prima di entrare nel ciclo for di
 	 * {@link #AlphaBeta(TreeNode, CXCellState, int, int, int)}, ordinandole in
 	 * ordine decrescente di valore secondo l'euristica.
-	 * 
+	 * 616669.25 nodi visitati con radix sort, 599491.5 con sort
 	 * @param T nodo il cui campo <code> T.Moves </code> deve essere
 	 *          inizializzato
 	 */
@@ -334,7 +376,7 @@ public class BirbaBot implements CXPlayer {
 				}
 			}
 			// mosse in ordine decrescente
-			LabeledMove.radixSort(moves, moves.length);
+			Arrays.sort(moves, LabeledMove::compareTo);
 			T.updateMoves(moves);
 		} else
 			System.err.println("GenerateMoveList has been called after game ended");
@@ -379,7 +421,7 @@ public class BirbaBot implements CXPlayer {
 			int oppEval = util.evaluateColumn(stateBoard, move, player == me ? opponent : me);
 			if (oppEval == WIN) {
 				add_move = false;
-				return_moves[index] = new LabeledMove(BLOCK_OPP, move);
+				return_moves[index] = new LabeledMove(LOSS, move);
 			}
 
 			// We should never play under opponent winning positions.
@@ -402,12 +444,6 @@ public class BirbaBot implements CXPlayer {
 			index++;
 			undoMove();
 		}
-
-		// If the opponent has more than two directly playable winning positions
-		// there is nothing we can do
-		// if (oppWinningMoves > 1) {
-		// return new LabeledMove[0];
-		// }
 
 		return return_moves;
 	}
@@ -524,7 +560,7 @@ public class BirbaBot implements CXPlayer {
 	 * maximum timeout time
 	 */
 	private void checktime() throws TimeoutException {
-		if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0))
+		if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (98.0 / 100.0))
 			throw new TimeoutException();
 	}
 

@@ -13,7 +13,7 @@ public class Debug {
 
     public static void printChildren(TreeNode root) {
         int count = 0;
-        for (TreeNode i : root.getChildNodes()) {
+        for (TreeNode i : root.getChildren()) {
             System.err.println("figlio " + count + ", label -> " + i.label);
             count++;
         }
