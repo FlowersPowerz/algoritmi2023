@@ -232,10 +232,11 @@ public class BirbaBot implements CXPlayer {
 			return T.label;
 		}
 		// generate or get already generated move list
-		PriorityQueue<LabeledMove> children = T.getMoves();
+		LabeledMove[] children = T.getMoves();
 		// if this node has not been discovered yet generate its moves
-		if (children == null) {
-			children = GenerateMoveList(T);
+		if (children.length == 0) {
+			GenerateMoveList(T);
+			children = T.getMoves();
 		}
 
 		if (children.length == 1 && children[0].getValue() == WIN) {

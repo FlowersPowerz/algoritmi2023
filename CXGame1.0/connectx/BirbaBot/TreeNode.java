@@ -2,7 +2,6 @@ package connectx.BirbaBot;
 
 import connectx.CXCell;
 import connectx.CXCellState;
-
 import java.util.LinkedList;
 import java.util.List;
 
@@ -26,7 +25,7 @@ public class TreeNode {
     this.cell = cell;
     this.leaf = false;
     this.childNodes = new LinkedList<>();
-    this.Moves = null;
+    this.Moves = new LabeledMove[0];
   }
 
   public void addChild(TreeNode childNode) {
