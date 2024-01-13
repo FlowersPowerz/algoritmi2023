@@ -82,37 +82,44 @@ public class BirbaBot implements CXPlayer {
 		// update our Board and stateBoard
 		Board = B.copy();
 		stateBoard = B.getBoard();
-		// System.err.println("====================================");
-		// not the first turn
-		if (bestMove != null && lastOppMove != null) {
-			// prendo il sottoalbero radicato nell'ultima mossa dell'avversario
-			TreeNode chilNode = bestMove.getChildByCell(lastOppMove);
-			if (chilNode != null) {
-				root = chilNode;
-			}
-			else {
-				root = new TreeNode(lastOppMove);
-				GenerateMoveList(root);
-			}
-		}
-		// first turn
-		else {
-			// first round
-			if (lastOppMove == null) {
-				bestMove = new TreeNode(makeMove(N / 2, 0));
-				return bestMove.getCell().j;
-			}
-			// second round
-			else {
-				root = new TreeNode(lastOppMove);
-				GenerateMoveList(root);
-			}
-		}
 
-		bestMove = null;
-		// start iterative deepening
 		try {
+			// not the first turn
+			if (bestMove != null && lastOppMove != null) {
+				// prendo il sottoalbero radicato nell'ultima mossa dell'avversario
+				TreeNode chilNode = bestMove.getChildByCell(lastOppMove);
+				if (chilNode != null) {
+					root = chilNode;
+				}
+				else {
+					root = new TreeNode(lastOppMove);
+					GenerateMoveList(root);
+				}
+			}
+			// first turn
+			else {
+				// we are player1
+				if (lastOppMove == null) {
+					bestMove = new TreeNode(makeMove(N / 2, 0));
+					return bestMove.getCell().j;
+				}
+				// we are player2
+				else {
+					root = new TreeNode(lastOppMove);
+					GenerateMoveList(root);
+				}
+			}
+
+			bestMove = null;
+			// start iterative deepening
 			IterativeDeepening(root, me, M * N - B.numOfMarkedCells(), B);
+
+			// Debug.printTable(stateBoard);
+			// System.err.println("best move: " + bestMove.getCell().j + ", label: " +
+			// bestMove.label);
+			System.err.println("Visited nodes: " + nodeCount);
+			return bestMove.getCell().j;
+
 		} catch (TimeoutException e) {
 			if (bestMove == null) {
 				System.err.println("Visited nodes: " + nodeCount);
@@ -122,12 +129,6 @@ public class BirbaBot implements CXPlayer {
 				return bestMove.getCell().j;
 			}
 		}
-
-		// Debug.printTable(stateBoard);
-		// System.err.println("best move: " + bestMove.getCell().j + ", label: " +
-		// bestMove.label);
-		System.err.println("Visited nodes: " + nodeCount);
-		return bestMove.getCell().j;
 	}
 
 	/**
@@ -162,27 +163,8 @@ public class BirbaBot implements CXPlayer {
 			TreeNode[] children = T.getChildren();
 
 			if (moves.length == 1) {
-				// play the winnig move and evaluate it immediately
-				CXCell cell = makeMove(moves[0].getMove(), 1);
-				
-				TreeNode child;
-				if (children.length == 0) {
-					child = children[0];
-					child.label = evaluate(child);
-				}
-				else {
-					child = new TreeNode(cell);
-					child.updateLeaf();
-					child.label = evaluate(child);
-					T.addChild(child);
-				}
-				
-
-				undoMove();
-
-				bestMove = child;
-				bestMoveValue = child.label;
-				T.label = bestMoveValue;
+				// play the only move left
+				bestMove = new TreeNode(makeMove(moves[0].getMove(), 1));
 				break;
 			}
 
@@ -195,16 +177,29 @@ public class BirbaBot implements CXPlayer {
 				TreeNode child;
 				if (children.length > 0) {
 					child = children[index];
+					
 					if (child == null) {
 						child = new TreeNode(cell);
-						GenerateMoveList(child);
-						T.addChild(child);
+						if (Board.gameState() != CXGameState.OPEN) {
+							child.updateLeaf();
+							T.addChild(child);
+						}
+						else {
+							GenerateMoveList(child);
+							T.addChild(child);
+						}
 					}
 				}
 				else {
 					child = new TreeNode(cell);
-					GenerateMoveList(child);
-					T.addChild(child);
+					
+					if (Board.gameState() != CXGameState.OPEN) {
+						child.updateLeaf();
+						T.addChild(child);
+					} else {
+						GenerateMoveList(child);
+						T.addChild(child);
+					}
 				}
 				// chiamo Alphabeta con depth decrementata (se ho d=1 Alphabeta(depth = 0) farà
 				// subito un evaluate dei figli di root)
@@ -248,22 +243,28 @@ public class BirbaBot implements CXPlayer {
 	private int AlphaBeta(TreeNode T, CXCellState player, int alpha, int beta, int depth) throws TimeoutException {
 		nodeCount++;
 
+		// generate or get already generated move list
+		LabeledMove[] moves = T.getMoves();
+		TreeNode[] children = T.getChildren();
+
 		// siamo in una configurazione finale oppure la visita in profondità è finita
 		if (T.isLeaf() || depth == 0) {
 			T.label = evaluate(T);
 			return T.label;
 		}
-		// generate or get already generated move list
-		LabeledMove[] moves = T.getMoves();
-		TreeNode[] children = T.getChildren();
 
 		if (moves.length == 1 && moves[0].getValue() == WIN) {
-			// play the winning move and evaluate it immediately
-			TreeNode child = new TreeNode(makeMove(moves[0].getMove(), 1));
-			// child is a leaf node
+			CXCell cell = makeMove(moves[0].getMove(), 1);
+			// make this move in the list and add it to the game tree
+			TreeNode child;
+			if (children.length > 0) {
+				child = children[0];
+			} else {
+				child = new TreeNode(cell);
+				T.addChild(child);
+			}
 			child.updateLeaf();
 			child.label = evaluate(child);
-			T.addChild(child);
 
 			undoMove();
 
@@ -283,16 +284,29 @@ public class BirbaBot implements CXPlayer {
 				TreeNode child;
 				if (children.length > 0) {
 					child = children[index];
+
 					if (child == null) {
 						child = new TreeNode(cell);
-						GenerateMoveList(child);
-						T.addChild(child);
+						if (Board.gameState() != CXGameState.OPEN) {
+							child.updateLeaf();
+							T.addChild(child);
+						}
+						else {
+							GenerateMoveList(child);
+							T.addChild(child);
+						}
 					}
 				}
 				else {
 					child = new TreeNode(cell);
-					GenerateMoveList(child);
-					T.addChild(child);
+					
+					if (Board.gameState() != CXGameState.OPEN) {
+						child.updateLeaf();
+						T.addChild(child);
+					} else {
+						GenerateMoveList(child);
+						T.addChild(child);
+					}
 				}
 
 				// evaluate this move by taking the max value between current eval and value
@@ -319,16 +333,29 @@ public class BirbaBot implements CXPlayer {
 				TreeNode child;
 				if (children.length > 0) {
 					child = children[index];
+					
 					if (child == null) {
 						child = new TreeNode(cell);
-						GenerateMoveList(child);
-						T.addChild(child);
+						if (Board.gameState() != CXGameState.OPEN) {
+							child.updateLeaf();
+							T.addChild(child);
+						}
+						else {
+							GenerateMoveList(child);
+							T.addChild(child);
+						}
 					}
 				}
 				else {
 					child = new TreeNode(cell);
-					GenerateMoveList(child);
-					T.addChild(child);
+					
+					if (Board.gameState() != CXGameState.OPEN) {
+						child.updateLeaf();
+						T.addChild(child);
+					} else {
+						GenerateMoveList(child);
+						T.addChild(child);
+					}
 				}
 
 				// evaluate this move by taking the min value between current eval and value
@@ -356,7 +383,7 @@ public class BirbaBot implements CXPlayer {
 	 * @param T nodo il cui campo <code> T.Moves </code> deve essere
 	 *          inizializzato
 	 */
-	private void GenerateMoveList(TreeNode T) {
+	private void GenerateMoveList(TreeNode T) throws TimeoutException{
 		Integer[] AM = Board.getAvailableColumns();
 		LabeledMove[] moves;
 		if (AM.length > 0) {
@@ -365,21 +392,23 @@ public class BirbaBot implements CXPlayer {
 				T.updateMoves(moves);
 				return;
 			}
-			// classico swap
-			if (moves.length == 2) {
-				if (moves[0].getValue() < moves[1].getValue()) {
-					LabeledMove tmp = moves[0];
-					moves[0] = moves[1];
-					moves[1] = tmp;
-					T.updateMoves(moves);
-					return;
-				}
-			}
+			// // classico swap
+			// if (moves.length == 2) {
+			// 	if (moves[0].getValue() < moves[1].getValue()) {
+			// 		LabeledMove tmp = moves[0];
+			// 		moves[0] = moves[1];
+			// 		moves[1] = tmp;
+			// 		T.updateMoves(moves);
+			// 		return;
+			// 	}
+			// }
 			// mosse in ordine decrescente
 			Arrays.sort(moves, LabeledMove::compareTo);
 			T.updateMoves(moves);
-		} else
+		} else {
 			System.err.println("GenerateMoveList has been called after game ended");
+			Debug.printTable(stateBoard);
+		}
 	}
 
 	/**
@@ -399,7 +428,7 @@ public class BirbaBot implements CXPlayer {
 	 * @param player whose turn is
 	 * @return array of Labeled Move(s) that are worth exploring with alphabeta
 	 */
-	private LabeledMove[] possibleNonLosingMoves(Integer[] AM, CXCellState player) {
+	private LabeledMove[] possibleNonLosingMoves(Integer[] AM, CXCellState player) throws TimeoutException{
 
 		int index = 0;
 		LabeledMove[] return_moves = new LabeledMove[AM.length];
@@ -409,13 +438,14 @@ public class BirbaBot implements CXPlayer {
 			// I need the bottom cell of the column col
 			CXCell move = makeMove(col, 2);
 
+			checktime();
 			// It is better to win than to simply block the opponent
 			int myEval = util.evaluateColumn(stateBoard, move, player == me ? me : opponent);
 			if (myEval == WIN) {
 				undoMove();
 				return new LabeledMove[] { new LabeledMove(WIN, move) };
 			}
-
+			checktime();
 			// We should always play a column on which the opponent has a winning position
 			// in the bottom of the column.
 			int oppEval = util.evaluateColumn(stateBoard, move, player == me ? opponent : me);
@@ -512,41 +542,10 @@ public class BirbaBot implements CXPlayer {
 	 * @return the <code>CXCell</code> type cell of the move
 	 */
 	private CXCell makeMove(int col, int funzione) {
-		if (Board.gameState() == CXGameState.OPEN && !Board.fullColumn(col)) {
-			Board.markColumn(col);
-			CXCell move = Board.getLastMove();
-			stateBoard[move.i][move.j] = move.state;
-			return move;
-		} else {
-			switch (funzione) {
-				case 0:
-					System.err.println("OPS! makeMove chiamato da select_column");
-				case 1:
-					System.err.println("OPS! makeMove chiamato da Alphabeta");
-				case 2:
-					System.err.println("OPS! makeMove chiamato da possibleNonLosingMoves");
-				case 3:
-					System.err.println("OPS! makeMove chiamato da IterativeDeepening");
-			}
-			if (Board.gameState() != CXGameState.OPEN) {
-				System.err.println("hai provato a giocare dopo che la partita è finita");
-			}
-			if (Board.fullColumn(col)) {
-				System.err.println("hai giocato su una colonna già piena: " + col);
-			}
-			if (col < 0 && col > N) {
-				System.err.println("hai cagato fuori dal vaso");
-			}
-			if (Board.currentPlayer() == meint)
-				System.err.println("tocca a noi");
-			else
-				System.err.println("tocca all'avversario");
-			Debug.printTable(stateBoard);
-			Board.markColumn(col);
-			CXCell move = Board.getLastMove();
-			stateBoard[move.i][move.j] = move.state;
-			return move;
-		}
+		Board.markColumn(col);
+		CXCell move = Board.getLastMove();
+		stateBoard[move.i][move.j] = move.state;
+		return move;
 	}
 
 	private void undoMove() {

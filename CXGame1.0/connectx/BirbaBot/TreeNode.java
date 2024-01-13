@@ -2,8 +2,6 @@ package connectx.BirbaBot;
 
 import connectx.CXCell;
 import connectx.CXCellState;
-import java.util.LinkedList;
-import java.util.List;
 
 /**
  * Nodo del game tree
@@ -27,12 +25,14 @@ public class TreeNode {
     this.leaf = false;
     this.moves = new LabeledMove[0];
     this.children = new TreeNode[0];
+    this.index = 0;
   }
 
   public void addChild(TreeNode child) {
     if (index < 0 || index > moves.length - 1) {
+      System.err.println("index: " + index);
       throw new RuntimeException("Invalid index value");
-  }
+    }
     if (children.length == 0) {
       children = new TreeNode[moves.length];
     }
