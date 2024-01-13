@@ -19,7 +19,7 @@
             "name": "CXPlayerTester",
             "request": "launch",
             "mainClass": "connectx.CXPlayerTester",
-            "args": "25 25 10 connectx.BirbaBot.BirbaBot connectx.L1.L1 -v -t 1 -r 10",
+            "args": "6 7 4 connectx.BirbaBot.BirbaBot connectx.L1.L1 -v -t 1 -r 10",
             "projectName": "algoritmi2023_ce710633"
         }
     ]

@@ -392,18 +392,19 @@ public class BirbaBot implements CXPlayer {
 				T.updateMoves(moves);
 				return;
 			}
-			// // classico swap
-			// if (moves.length == 2) {
-			// 	if (moves[0].getValue() < moves[1].getValue()) {
-			// 		LabeledMove tmp = moves[0];
-			// 		moves[0] = moves[1];
-			// 		moves[1] = tmp;
-			// 		T.updateMoves(moves);
-			// 		return;
-			// 	}
-			// }
+			// classico swap
+			if (moves.length == 2) {
+				if (moves[0].getValue() < moves[1].getValue()) {
+					LabeledMove tmp = moves[0];
+					moves[0] = moves[1];
+					moves[1] = tmp;
+					T.updateMoves(moves);
+					return;
+				}
+			}
 			// mosse in ordine decrescente
-			Arrays.sort(moves, LabeledMove::compareTo);
+			// Arrays.sort(moves, LabeledMove::compareTo);
+			LabeledMove.radixSort(moves, moves.length);
 			T.updateMoves(moves);
 		} else {
 			System.err.println("GenerateMoveList has been called after game ended");
