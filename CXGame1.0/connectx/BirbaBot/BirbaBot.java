@@ -46,6 +46,9 @@ public class BirbaBot implements CXPlayer {
 	// Utility variables
 	private Evaluate util;
 	private int nodeCount;
+	private int old_nodeCount;
+	private int turns;
+	private float media;
 
 	/* Default empty constructor */
 	public BirbaBot() {
@@ -70,6 +73,9 @@ public class BirbaBot implements CXPlayer {
 		util = new Evaluate(this.M, this.N, this.X);
 		bestMove = null;
 		nodeCount = 0;
+		old_nodeCount = 0;
+		turns = 0;
+		media = 0;
 		root = null;
 	}
 
@@ -77,6 +83,7 @@ public class BirbaBot implements CXPlayer {
 	public int selectColumn(CXBoard B) {
 		START = System.currentTimeMillis(); // Save starting time
 		nodeCount = 0;
+		turns++;
 		// look at last opponent move
 		CXCell lastOppMove = B.getLastMove();
 		// update our Board and stateBoard
@@ -114,18 +121,23 @@ public class BirbaBot implements CXPlayer {
 			// start iterative deepening
 			IterativeDeepening(root, me, M * N - B.numOfMarkedCells(), B);
 
-			// Debug.printTable(stateBoard);
-			// System.err.println("best move: " + bestMove.getCell().j + ", label: " +
-			// bestMove.label);
-			System.err.println("Visited nodes: " + nodeCount);
+			old_nodeCount += nodeCount;
+			media = old_nodeCount / turns;
+			System.err.println("media: " + media);
 			return bestMove.getCell().j;
 
 		} catch (TimeoutException e) {
 			if (bestMove == null) {
-				System.err.println("Visited nodes: " + nodeCount);
+				old_nodeCount += nodeCount;
+				media = old_nodeCount / turns;
+				System.err.println("media: " + media);
 				return root.getMoves()[0].getCell().j;
 			} else {
-				System.err.println("Visited nodes: " + nodeCount);
+				old_nodeCount += nodeCount;
+				media = old_nodeCount / turns;
+				System.err.println("media: " + media);
+				Debug.printMoves(root.getMoves());
+				Debug.printChildren(root);
 				return bestMove.getCell().j;
 			}
 		}
@@ -223,6 +235,7 @@ public class BirbaBot implements CXPlayer {
 
 			// aggiorno bestMove solo dopo una completa ricerca a profondità d
 			bestMove = bestMove_yet;
+			System.err.println("depth: " + d);
 		}
 	}
 
@@ -403,8 +416,8 @@ public class BirbaBot implements CXPlayer {
 				}
 			}
 			// mosse in ordine decrescente
-			// Arrays.sort(moves, LabeledMove::compareTo);
-			LabeledMove.radixSort(moves, moves.length);
+			Arrays.sort(moves, LabeledMove::compareTo);
+			// LabeledMove.radixSort(moves, moves.length);
 			T.updateMoves(moves);
 		} else {
 			System.err.println("GenerateMoveList has been called after game ended");
