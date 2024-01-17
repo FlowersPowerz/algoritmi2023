@@ -23,7 +23,6 @@ public class BirbaBot implements CXPlayer {
 	public static final int WIN = 100000;
 	public final int LOSS = 0;
 	private final int BLOCK_OPP = WIN - 1;
-	private int ASPIRATION_WINDOW_SIZE = 30;
 	// variables for initPlayer()
 	private int TIMEOUT;
 	private long START;
@@ -99,7 +98,8 @@ public class BirbaBot implements CXPlayer {
 				if (chilNode != null) {
 					System.err.println("CACHE HIT");
 					root = chilNode;
-				} else {
+				}
+				else {
 					root = new TreeNode(lastOppMove);
 					GenerateMoveList(root);
 				}
@@ -122,24 +122,21 @@ public class BirbaBot implements CXPlayer {
 			// start iterative deepening
 			IterativeDeepening(root, me, M * N - B.numOfMarkedCells(), B);
 
-			old_nodeCount += nodeCount;
-			media = old_nodeCount / turns;
-			System.err.println("media: " + media);
+			compute_average();
+			Debug.printMoves(root.getMoves());
+			Debug.printChildren(root);
+			System.err.println("root label: " + root.label + ", " + "best move label: " + bestMove.label);
 			return bestMove.getCell().j;
 
 		} catch (TimeoutException e) {
 			if (bestMove == null) {
-				old_nodeCount += nodeCount;
-				media = old_nodeCount / turns;
-				System.err.println("media: " + media);
+				compute_average();
 				return root.getMoves()[0].getCell().j;
 			} else {
-				old_nodeCount += nodeCount;
-				media = old_nodeCount / turns;
-				System.err.println("media: " + media);
+				compute_average();
 				Debug.printMoves(root.getMoves());
 				Debug.printChildren(root);
-				System.err.println("root label: " + root.label + ", " + "best move: " + root.getChildByCell(bestMove.getCell()).getCell().j);
+				System.err.println("root label: " + root.label + ", " + "best move label: " + bestMove.label);
 				return bestMove.getCell().j;
 			}
 		}
@@ -157,8 +154,10 @@ public class BirbaBot implements CXPlayer {
 	 * @param depth  depth of search
 	 */
 	private void IterativeDeepening(TreeNode T, CXCellState player, int depth, CXBoard B) throws TimeoutException {
-		int windowAlpha = -Integer.MAX_VALUE; // Initial window bounds
-		int windowBeta = Integer.MAX_VALUE;
+		// differenziare OldBestMove da NewBestMove, la prima deve essere il
+		// risultato di una ricerca completa a profondità d, la seconda è quella
+		// calcolata fino a quel momento
+
 		// nella mia testa depth = 0 è la radice quindi se voglio fare una visita solo
 		// al
 		// primo livello del sottoalbero radicato in T la depth = 1
@@ -195,14 +194,16 @@ public class BirbaBot implements CXPlayer {
 						if (Board.gameState() != CXGameState.OPEN) {
 							child.updateLeaf();
 							T.addChild(child);
-						} else {
+						}
+						else {
 							GenerateMoveList(child);
 							T.addChild(child);
 						}
 					}
-				} else {
+				}
+				else {
 					child = new TreeNode(cell);
-
+					
 					if (Board.gameState() != CXGameState.OPEN) {
 						child.updateLeaf();
 						T.addChild(child);
@@ -211,9 +212,7 @@ public class BirbaBot implements CXPlayer {
 						T.addChild(child);
 					}
 				}
-				// chiamo Alphabeta con depth decrementata (se ho d=1 Alphabeta(depth = 0) farà
-				// subito un evaluate dei figli di root)
-				// che aggiorna la bestMove se l'eval trovato è migliore di prima
+				
 				eval = Math.max(eval, AlphaBeta(child, opponent, alpha, beta, d - 1));
 				alpha = Math.max(eval, alpha);
 
@@ -224,15 +223,6 @@ public class BirbaBot implements CXPlayer {
 					bestMove_yet = child;
 					bestMoveValue = eval;
 					T.label = bestMoveValue;
-
-					// Check aspiration window
-					if (bestMoveValue > windowBeta || bestMoveValue < windowAlpha) {
-						// Score is outside the current window, widen the window and re-search
-						windowAlpha = -Integer.MAX_VALUE;
-						windowBeta = Integer.MAX_VALUE;
-						System.err.println("Score is outside the current window");
-						break;
-					}
 				}
 
 				if (beta <= alpha) {
@@ -243,10 +233,6 @@ public class BirbaBot implements CXPlayer {
 			// aggiorno bestMove solo dopo una completa ricerca a profondità d
 			bestMove = bestMove_yet;
 			System.err.println("depth: " + d);
-
-			// Update aspiration window for the next iteration
-			windowAlpha = bestMoveValue - ASPIRATION_WINDOW_SIZE;
-			windowBeta = bestMoveValue + ASPIRATION_WINDOW_SIZE;
 		}
 	}
 
@@ -314,14 +300,16 @@ public class BirbaBot implements CXPlayer {
 						if (Board.gameState() != CXGameState.OPEN) {
 							child.updateLeaf();
 							T.addChild(child);
-						} else {
+						}
+						else {
 							GenerateMoveList(child);
 							T.addChild(child);
 						}
 					}
-				} else {
+				}
+				else {
 					child = new TreeNode(cell);
-
+					
 					if (Board.gameState() != CXGameState.OPEN) {
 						child.updateLeaf();
 						T.addChild(child);
@@ -355,20 +343,22 @@ public class BirbaBot implements CXPlayer {
 				TreeNode child;
 				if (children.length > 0) {
 					child = children[index];
-
+					
 					if (child == null) {
 						child = new TreeNode(cell);
 						if (Board.gameState() != CXGameState.OPEN) {
 							child.updateLeaf();
 							T.addChild(child);
-						} else {
+						}
+						else {
 							GenerateMoveList(child);
 							T.addChild(child);
 						}
 					}
-				} else {
+				}
+				else {
 					child = new TreeNode(cell);
-
+					
 					if (Board.gameState() != CXGameState.OPEN) {
 						child.updateLeaf();
 						T.addChild(child);
@@ -400,11 +390,10 @@ public class BirbaBot implements CXPlayer {
 	 * {@link #AlphaBeta(TreeNode, CXCellState, int, int, int)}, ordinandole in
 	 * ordine decrescente di valore secondo l'euristica.
 	 * 616669.25 nodi visitati con radix sort, 599491.5 con sort
-	 * 
 	 * @param T nodo il cui campo <code> T.Moves </code> deve essere
 	 *          inizializzato
 	 */
-	private void GenerateMoveList(TreeNode T) throws TimeoutException {
+	private void GenerateMoveList(TreeNode T) throws TimeoutException{
 		Integer[] AM = Board.getAvailableColumns();
 		LabeledMove[] moves;
 		if (AM.length > 0) {
@@ -424,8 +413,8 @@ public class BirbaBot implements CXPlayer {
 				}
 			}
 			// mosse in ordine decrescente
-			Arrays.sort(moves, LabeledMove::compareTo);
-			// LabeledMove.radixSort(moves, moves.length);
+			Arrays.sort(moves, LabeledMove::compareTo); // 445500.0 media nodi
+			// LabeledMove.radixSort(moves, moves.length); // 435870.0 media nodi
 			T.updateMoves(moves);
 		} else {
 			System.err.println("GenerateMoveList has been called after game ended");
@@ -450,7 +439,7 @@ public class BirbaBot implements CXPlayer {
 	 * @param player whose turn is
 	 * @return array of Labeled Move(s) that are worth exploring with alphabeta
 	 */
-	private LabeledMove[] possibleNonLosingMoves(Integer[] AM, CXCellState player) throws TimeoutException {
+	private LabeledMove[] possibleNonLosingMoves(Integer[] AM, CXCellState player) throws TimeoutException{
 
 		int index = 0;
 		LabeledMove[] return_moves = new LabeledMove[AM.length];
@@ -569,6 +558,12 @@ public class BirbaBot implements CXPlayer {
 		CXCell move = Board.getLastMove();
 		stateBoard[move.i][move.j] = CXCellState.FREE;
 		Board.unmarkColumn();
+	}
+
+	private void compute_average() {
+		old_nodeCount += nodeCount;
+		media = old_nodeCount / turns;
+		System.err.println("media: " + media);
 	}
 
 	/**
