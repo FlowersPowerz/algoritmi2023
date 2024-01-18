@@ -11,7 +11,7 @@
             "name": "CXGame",
             "request": "launch",
             "mainClass": "connectx.CXGame",
-            "args": ["4", "4", "4", "connectx.BirbaBot.BirbaBot"],
+            "args": ["6", "7", "4", "connectx.BirbaBot.BirbaBot"],
             "projectName": "algoritmi2023_ce710633"
         },
         {
@@ -19,7 +19,7 @@
             "name": "CXPlayerTester",
             "request": "launch",
             "mainClass": "connectx.CXPlayerTester",
-            "args": "6 7 4 connectx.BirbaBot.BirbaBot connectx.L1.L1 -v -t 10 -r 1",
+            "args": "25 25 10 connectx.BirbaBot.BirbaBot connectx.L1.L1 -v -t 1 -r 3",
             "projectName": "algoritmi2023_ce710633"
         }
     ]

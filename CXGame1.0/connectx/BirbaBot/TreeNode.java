@@ -75,7 +75,7 @@ public class TreeNode {
       return null;
 
     for (TreeNode n : this.children) {
-      // la cella della mossa è stata trovata, ritorna il nodo
+      // we found the move in one of the children
       if (n.getCell().i == move.i && n.getCell().j == move.j) {
         return n;
       }
@@ -90,10 +90,10 @@ public class TreeNode {
   /**
    * DISCLAIMER: every <code>TreeNode</code> cointains the cell that has already
    * been played, so this method returns the player that has to make a move. e.g.
-   * <code>this.cell.state -> P1, but this method will return P2, which has to
+   * <code>this.cell.state -> P1, but this method will return P2, who has to
    * make a move from this node
    * 
-   * @return the player whose turn is to play
+   * @return player who has to play next
    */
   public CXCellState getCurrentPlayer() {
     return this.cell.state == CXCellState.P1 ? CXCellState.P2 : CXCellState.P1;
