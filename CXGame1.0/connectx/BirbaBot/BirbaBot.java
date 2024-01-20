@@ -31,10 +31,6 @@ public class BirbaBot implements CXPlayer {
 	// variables for checking gamestate and cells state
 	private CXCellState me, opponent;
 	private CXGameState myWin, yourWin;
-	// Transposition table variables
-	ZobristTable zobristTable;
-	TranspositionTable transpositionTable;
-	long currentHash;
 
 	/**
 	 * the best move found and the end of iterative deepening
@@ -69,10 +65,6 @@ public class BirbaBot implements CXPlayer {
 		yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
 		me = first ? CXCellState.P1 : CXCellState.P2;
 		opponent = first ? CXCellState.P2 : CXCellState.P1;
-
-		zobristTable = new ZobristTable(M, N);
-		transpositionTable = new TranspositionTable();
-		currentHash = 0;
 
 		util = new Evaluate(M, N, X);
 		bestMove = null;
@@ -124,11 +116,9 @@ public class BirbaBot implements CXPlayer {
 			// start iterative deepening
 			IterativeDeepening(root, me, M * N - B.numOfMarkedCells(), B);
 
-			// compute_average();
+			compute_average();
 			// Debug.printMoves(root.getMoves());
 			// Debug.printChildren(root);
-			// System.err.println("root label: " + root.label + ", " + "best move label: " +
-			// bestMove.label);
 			return bestMove.getCell().j;
 
 		} catch (TimeoutException e) {
@@ -137,11 +127,9 @@ public class BirbaBot implements CXPlayer {
 				bestMove = new TreeNode(root.getMoves()[0].getCell());
 				return bestMove.getCell().j;
 			} else {
-				// compute_average();
+				compute_average();
 				// Debug.printMoves(root.getMoves());
 				// Debug.printChildren(root);
-				// System.err.println("root label: " + root.label + ", " + "best move label: " +
-				// bestMove.label);
 				return bestMove.getCell().j;
 			}
 		}
@@ -235,19 +223,20 @@ public class BirbaBot implements CXPlayer {
 			T.label = evaluate(T);
 			return T.label;
 		}
+		// 537659.9 nodi medi senza check
+		// 355485.4 nodi medi con check
+		// if (moves.length == 1 && (moves[0].getValue() == WIN)) {
+		// 	CXCell cell = makeMove(moves[0].getMove());
+		// 	// make this move in the list and add it to the game tree
+		// 	TreeNode child = new TreeNode(cell);
+		// 	child.updateLeaf();
 
-		if (moves.length == 1 && moves[0].getValue() == WIN) {
-			CXCell cell = makeMove(moves[0].getMove());
-			// make this move in the list and add it to the game tree
-			TreeNode child = new TreeNode(cell);
-			child.updateLeaf();
+		// 	T.label = evaluate(child);
 
-			T.label = evaluate(child);
+		// 	undoMove();
 
-			undoMove();
-
-			return T.label;
-		}
+		// 	return T.label;
+		// }
 
 		int eval, index = 0;
 		// Our player is maximizing
@@ -387,6 +376,8 @@ public class BirbaBot implements CXPlayer {
 	private LabeledMove[] possibleNonLosingMoves(Integer[] AM, CXCellState player) throws TimeoutException {
 
 		int index = 0;
+		CXCell block = null;
+		int oppWinMoves = 0;
 		LabeledMove[] return_moves = new LabeledMove[AM.length];
 
 		for (Integer col : AM) {
@@ -407,7 +398,8 @@ public class BirbaBot implements CXPlayer {
 			int oppEval = util.evaluateColumn(stateBoard, move, player == me ? opponent : me);
 			if (oppEval == WIN) {
 				add_move = false;
-				return_moves[index] = new LabeledMove(BLOCK_OPP, move);
+				block = move;
+				oppWinMoves++;
 			}
 
 			// We should never play under opponent winning positions.
@@ -429,6 +421,14 @@ public class BirbaBot implements CXPlayer {
 
 			index++;
 			undoMove();
+		}
+
+		if (oppWinMoves > 1) {
+			return new LabeledMove[] {new LabeledMove(LOSS, block)};
+		}
+
+		if (block != null) {
+			return new LabeledMove[] {new LabeledMove(BLOCK_OPP, block)};
 		}
 
 		return return_moves;
