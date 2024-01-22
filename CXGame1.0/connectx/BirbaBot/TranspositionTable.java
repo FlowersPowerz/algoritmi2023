@@ -8,11 +8,15 @@ public class TranspositionTable {
         this.table = new HashMap<>();
     }
 
-    public TranspositionEntry get(long hash) {
-        return table.get(hash);
+    public TranspositionEntry search(long key) {
+        return table.get(key);
     }
 
-    public void insert(long hash, TranspositionEntry entry) {
-        table.put(hash, entry);
+    public void insert(long key, TranspositionEntry entry) {
+        table.put(key, entry);
+    }
+
+    public void delete(long key) {
+        table.remove(key);
     }
 }

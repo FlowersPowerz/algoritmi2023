@@ -1,14 +1,15 @@
 package connectx.BirbaBot;
 
 public class TranspositionEntry {
+
     private int eval;
     private int depth;
-    private TreeNode bestMove;
+    private EntryType type;
 
-    public TranspositionEntry(int evaluation, int depth, TreeNode bestMove) {
+    public TranspositionEntry(int evaluation, int depth, EntryType type) {
         this.eval = evaluation;
         this.depth = depth;
-        this.bestMove = bestMove;
+        this.type = type;
     }
 
     public int getEval() {
@@ -19,7 +20,7 @@ public class TranspositionEntry {
         return depth;
     }
 
-    public TreeNode getBestMove() {
-        return bestMove;
+    public EntryType getType() {
+        return type;
     }
 }

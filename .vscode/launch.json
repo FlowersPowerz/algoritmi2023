@@ -5,13 +5,31 @@
     // Change the projectName attribute to your local project name
     "version": "0.2.0",
     "configurations": [
-        
+        {
+            "type": "java",
+            "name": "Position",
+            "request": "launch",
+            "mainClass": "connectx.BirbaBot.Position",
+            "projectName": "algoritmi2023_ce710633"
+        },
+        {
+            "type": "java",
+            "name": "BitBoard",
+            "request": "launch",
+            "mainClass": "connectx.BirbaBot.BitBoard",
+            "projectName": "algoritmi2023_ce710633"
+        },
         {
             "type": "java",
             "name": "CXGame",
             "request": "launch",
             "mainClass": "connectx.CXGame",
-            "args": ["6", "7", "4", "connectx.BirbaBot.BirbaBot"],
+            "args": [
+                "6",
+                "7",
+                "4",
+                "connectx.BirbaBot.BirbaBot"
+            ],
             "projectName": "algoritmi2023_ce710633"
         },
         {
@@ -19,7 +37,7 @@
             "name": "CXPlayerTester",
             "request": "launch",
             "mainClass": "connectx.CXPlayerTester",
-            "args": "25 25 10 connectx.BirbaBot.BirbaBot connectx.L1.L1 -v -t 1 -r 3",
+            "args": "6 7 4 connectx.BirbaBot.BirbaBot connectx.L1.L1 -v -t 3600 -r 5",
             "projectName": "algoritmi2023_ce710633"
         }
     ]

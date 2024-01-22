@@ -6,6 +6,7 @@ import connectx.CXCell;
 import connectx.CXCellState;
 import connectx.CXGameState;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -93,6 +94,16 @@ public class BirbaBot implements CXPlayer {
 		// update our Board and stateBoard
 		Board = B.copy();
 		stateBoard = B.getBoard();
+		currentHash = zobristTable.hash(stateBoard);
+
+		// Debug.printTable(stateBoard);
+		// System.err.println("hash: " + currentHash);
+		// makeMove(B.getAvailableColumns()[0]);
+		// Debug.printTable(stateBoard);
+		// System.err.println("hash: " + currentHash);
+		// undoMove();
+		// Debug.printTable(stateBoard);
+		// System.err.println("hash: " + currentHash);
 
 		try {
 			// not the first turn
@@ -124,7 +135,7 @@ public class BirbaBot implements CXPlayer {
 			// start iterative deepening
 			IterativeDeepening(root, me, M * N - B.numOfMarkedCells(), B);
 
-			// compute_average();
+			compute_average();
 			// Debug.printMoves(root.getMoves());
 			// Debug.printChildren(root);
 			// System.err.println("root label: " + root.label + ", " + "best move label: " +
@@ -133,11 +144,11 @@ public class BirbaBot implements CXPlayer {
 
 		} catch (TimeoutException e) {
 			if (bestMove == null) {
-				// compute_average();
+				compute_average();
 				bestMove = new TreeNode(root.getMoves()[0].getCell());
 				return bestMove.getCell().j;
 			} else {
-				// compute_average();
+				compute_average();
 				// Debug.printMoves(root.getMoves());
 				// Debug.printChildren(root);
 				// System.err.println("root label: " + root.label + ", " + "best move label: " +
@@ -202,7 +213,6 @@ public class BirbaBot implements CXPlayer {
 					break;
 				}
 			}
-
 			// aggiorno bestMove solo dopo una completa ricerca a profondità d
 			bestMove = bestMove_yet;
 			// System.err.println("depth: " + d);
@@ -226,6 +236,23 @@ public class BirbaBot implements CXPlayer {
 	private int AlphaBeta(TreeNode T, CXCellState player, int alpha, int beta, int depth) throws TimeoutException {
 		nodeCount++;
 
+		// Check transposition table
+		TranspositionEntry entry = transpositionTable.search(currentHash);
+		if (entry != null && entry.getDepth() >= depth) {
+			// Use the stored bounds to potentially prune the search
+			if (entry.getType() == EntryType.EXACT) {
+				return entry.getEval();
+			} else if (entry.getType() == EntryType.LOWERBOUND) {
+				alpha = Math.max(alpha, entry.getEval());
+			} else if (entry.getType() == EntryType.UPPERBOUND) {
+				beta = Math.min(beta, entry.getEval());
+			}
+	
+			if (beta <= alpha) {
+				// Prune the search
+				return entry.getEval();
+			}
+		}
 		// generate or get already generated move list
 		LabeledMove[] moves = T.getMoves();
 		TreeNode[] children = T.getChildren();
@@ -233,21 +260,21 @@ public class BirbaBot implements CXPlayer {
 		// siamo in una configurazione finale oppure la visita in profondità è finita
 		if (T.isLeaf() || depth == 0) {
 			T.label = evaluate(T);
+			// Add entry to transposition table
+			transpositionTable.insert(currentHash, new TranspositionEntry(T.label, depth, EntryType.EXACT));
 			return T.label;
 		}
 
-		if (moves.length == 1 && moves[0].getValue() == WIN) {
-			CXCell cell = makeMove(moves[0].getMove());
-			// make this move in the list and add it to the game tree
-			TreeNode child = new TreeNode(cell);
-			child.updateLeaf();
+		// if (moves.length == 1 && moves[0].getValue() >= BLOCK_OPP) {
+		// 	CXCell cell = makeMove(moves[0].getMove());
+		// 	// make this move in the list and add it to the game tree
+		// 	TreeNode child = new TreeNode(cell);
+		// 	child.updateLeaf();
+		// 	T.label = evaluate(child);
+		// 	undoMove();
 
-			T.label = evaluate(child);
-
-			undoMove();
-
-			return T.label;
-		}
+		// 	return T.label;
+		// }
 
 		int eval, index = 0;
 		// Our player is maximizing
@@ -296,6 +323,19 @@ public class BirbaBot implements CXPlayer {
 				}
 			}
 		}
+		// After evaluating children and determining the best move
+		TranspositionEntry newEntry;
+		if (eval <= alpha) {
+			newEntry = new TranspositionEntry(eval, depth, EntryType.UPPERBOUND);
+		} else if (eval >= beta) {
+			newEntry = new TranspositionEntry(eval, depth, EntryType.LOWERBOUND);
+		} else {
+			newEntry = new TranspositionEntry(eval, depth, EntryType.EXACT);
+		}
+	
+		// Add entry to transposition table
+		transpositionTable.insert(currentHash, newEntry);
+
 		T.label = eval;
 		return eval;
 	}
@@ -333,7 +373,6 @@ public class BirbaBot implements CXPlayer {
 	 * Genera le mosse possibili del nodo prima di entrare nel ciclo for di
 	 * {@link #AlphaBeta(TreeNode, CXCellState, int, int, int)}, ordinandole in
 	 * ordine decrescente di valore secondo l'euristica.
-	 * 616669.25 nodi visitati con radix sort, 599491.5 con sort
 	 * 
 	 * @param T nodo il cui campo <code> T.Moves </code> deve essere
 	 *          inizializzato
@@ -386,8 +425,10 @@ public class BirbaBot implements CXPlayer {
 	 */
 	private LabeledMove[] possibleNonLosingMoves(Integer[] AM, CXCellState player) throws TimeoutException {
 
-		int index = 0;
-		LabeledMove[] return_moves = new LabeledMove[AM.length];
+		CXCell block = null;
+		int oppWinMoves = 0;
+		// LabeledMove[] return_moves = new LabeledMove[AM.length];
+		LinkedList<LabeledMove> worth_moves = new LinkedList<>();
 
 		for (Integer col : AM) {
 			boolean add_move = true;
@@ -407,7 +448,9 @@ public class BirbaBot implements CXPlayer {
 			int oppEval = util.evaluateColumn(stateBoard, move, player == me ? opponent : me);
 			if (oppEval == WIN) {
 				add_move = false;
-				return_moves[index] = new LabeledMove(BLOCK_OPP, move);
+				block = move;
+				oppWinMoves++;
+				// return_moves[index] = new LabeledMove(BLOCK_OPP, move);
 			}
 
 			// We should never play under opponent winning positions.
@@ -416,7 +459,7 @@ public class BirbaBot implements CXPlayer {
 				makeMove(col);
 				if (Board.gameState() == (player == me ? yourWin : myWin)) {
 					add_move = false;
-					return_moves[index] = new LabeledMove(LOSS, move);
+					// return_moves[index] = new LabeledMove(LOSS, move);
 				}
 				undoMove();
 			}
@@ -424,13 +467,22 @@ public class BirbaBot implements CXPlayer {
 			// after all the checks, just add move to the list
 			if (add_move) {
 				// helpfulness is sum of both POVs
-				return_moves[index] = new LabeledMove(myEval + oppEval, move);
+				worth_moves.add(new LabeledMove(myEval + oppEval, move));
 			}
 
-			index++;
 			undoMove();
 		}
 
+		if (oppWinMoves > 1) {
+			return new LabeledMove[] { new LabeledMove(LOSS, block) };
+		}
+
+		if (block != null) {
+			return new LabeledMove[] { new LabeledMove(BLOCK_OPP, block) };
+		}
+
+		LabeledMove[] return_moves = new LabeledMove[worth_moves.size()];
+		worth_moves.toArray(return_moves);
 		return return_moves;
 	}
 
@@ -495,12 +547,14 @@ public class BirbaBot implements CXPlayer {
 		Board.markColumn(col);
 		CXCell move = Board.getLastMove();
 		stateBoard[move.i][move.j] = move.state;
+		currentHash = zobristTable.updateHash(currentHash, stateBoard, move, false);
 		return move;
 	}
 
 	private void undoMove() {
 		CXCell move = Board.getLastMove();
 		stateBoard[move.i][move.j] = CXCellState.FREE;
+		currentHash = zobristTable.updateHash(currentHash, stateBoard, move, true);
 		Board.unmarkColumn();
 	}
 

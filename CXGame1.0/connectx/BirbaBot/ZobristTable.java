@@ -1,6 +1,8 @@
 package connectx.BirbaBot;
+
 import java.util.Random;
 
+import connectx.CXCell;
 import connectx.CXCellState;
 
 public class ZobristTable {
@@ -11,7 +13,7 @@ public class ZobristTable {
     public ZobristTable(int rows, int columns) {
         this.M = rows;
         this.N = columns;
-        zobrist = new long[M][N][2];   // size = rows * columns * # of pieces
+        zobrist = new long[M][N][2]; // size = rows * columns * # of pieces
         init_zobrist();
     }
 
@@ -28,6 +30,8 @@ public class ZobristTable {
     }
 
     /**
+     * Use after copying the official board into our board
+     * 
      * @param board current stateBoard
      * @return the hash code for this board
      */
@@ -44,5 +48,23 @@ public class ZobristTable {
             }
         }
         return hash;
+    }
+
+    public long updateHash(long currentHash, CXCellState[][] board, CXCell cell, boolean undo) {
+        if (undo) {
+            // XOR out the old value
+            currentHash ^= zobrist[cell.i][cell.j][cell.state == CXCellState.P1 ? 0 : 1];
+            return currentHash;
+        } else {
+            // XOR out the old value
+            currentHash ^= zobrist[cell.i][cell.j][cell.state == CXCellState.P1 ? 0 : 1];
+            // XOR in the new value
+            if (cell.state == CXCellState.P1) {
+                currentHash ^= zobrist[cell.i][cell.j][0];
+            } else if (cell.state == CXCellState.P2) {
+                currentHash ^= zobrist[cell.i][cell.j][1];
+            }
+            return currentHash;
+        }
     }
 }

@@ -125,7 +125,7 @@ public class Debug {
                     case P2:
                         return "O";
                     default:
-                        throw new RuntimeException("Hey! How did you get here?!");
+                        throw new RuntimeException("Bro che ci fai qui");
                 }
             }
         }
