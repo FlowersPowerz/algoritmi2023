@@ -1,4 +1,4 @@
-package connectx.BirbaBot;
+package connectx.ZobristBot;
 import java.util.HashMap;
 
 public class TranspositionTable {

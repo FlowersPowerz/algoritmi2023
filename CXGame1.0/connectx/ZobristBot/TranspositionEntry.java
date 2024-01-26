@@ -1,4 +1,4 @@
-package connectx.BirbaBot;
+package connectx.ZobristBot;
 
 public class TranspositionEntry {
 

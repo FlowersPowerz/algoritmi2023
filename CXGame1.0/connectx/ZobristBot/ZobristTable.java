@@ -1,4 +1,4 @@
-package connectx.BirbaBot;
+package connectx.ZobristBot;
 
 import java.util.Random;
 
@@ -53,11 +53,15 @@ public class ZobristTable {
     public long updateHash(long currentHash, CXCellState[][] board, CXCell cell, boolean undo) {
         if (undo) {
             // XOR out the old value
-            currentHash ^= zobrist[cell.i][cell.j][cell.state == CXCellState.P1 ? 0 : 1];
+            if (board[cell.i][cell.j] != CXCellState.FREE) {
+                currentHash ^= zobrist[cell.i][cell.j][board[cell.i][cell.j] == CXCellState.P1 ? 0 : 1];
+            }
             return currentHash;
         } else {
             // XOR out the old value
-            currentHash ^= zobrist[cell.i][cell.j][cell.state == CXCellState.P1 ? 0 : 1];
+            if (board[cell.i][cell.j] != CXCellState.FREE) {
+                currentHash ^= zobrist[cell.i][cell.j][board[cell.i][cell.j] == CXCellState.P1 ? 0 : 1];
+            }
             // XOR in the new value
             if (cell.state == CXCellState.P1) {
                 currentHash ^= zobrist[cell.i][cell.j][0];
@@ -66,5 +70,9 @@ public class ZobristTable {
             }
             return currentHash;
         }
+        // 001011
+        // 101110
+        // ^
+        // 100101
     }
 }

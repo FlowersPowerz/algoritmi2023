@@ -1,4 +1,4 @@
-package connectx.BirbaBot;
+package connectx.ZobristBot;
 import java.util.Arrays;
 
 import connectx.CXCellState;
@@ -14,7 +14,7 @@ public class Debug {
     public static void printChildren(TreeNode root) {
         int count = 0;
         for (TreeNode i : root.getChildren()) {
-            System.err.println("figlio " + count + ", label -> " + i.label);
+            System.err.println("figlio " + count + ", mossa: " + i.getCell().j + ", label -> " + i.label);
             count++;
         }
     }
@@ -125,7 +125,7 @@ public class Debug {
                     case P2:
                         return "O";
                     default:
-                        throw new RuntimeException("Hey! How did you get here?!");
+                        throw new RuntimeException("Bro che ci fai qui");
                 }
             }
         }
@@ -163,6 +163,12 @@ public class Debug {
             System.err.println(arr);
         }
         System.err.println(lines);
+    }
+
+    public static void printZobrist(ZobristTable zobrist, CXCellState[][] board, long currHash) {
+        Debug.printTable(board);
+        System.err.println("current hash code: " + currHash);
+        System.err.println("hash calculated by hash function: " + zobrist.hash(board));
     }
 
     public static void breakpoint() {
