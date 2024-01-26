@@ -1,4 +1,4 @@
-package connectx.BirbaBot;
+package connectx.ZobristBot;
 
 import static connectx.ZobristBot.ZobristBot.WIN;
 

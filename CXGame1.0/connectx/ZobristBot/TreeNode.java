@@ -1,4 +1,4 @@
-package connectx.BirbaBot;
+package connectx.ZobristBot;
 
 import connectx.CXCell;
 import connectx.CXCellState;
@@ -6,7 +6,7 @@ import connectx.CXCellState;
 /**
  * Nodo del game tree
  */
-public class TreeNode {
+public class TreeNode implements Comparable<TreeNode>{
   /** cella della mossa giocata in questo nodo */
   private CXCell cell;
   /** etichetta della mossa calcolata dalla visita con AlphaBeta */
@@ -64,6 +64,12 @@ public class TreeNode {
     return this.leaf;
   }
 
+  @Override
+    public int compareTo(TreeNode other) {
+        // Compare by value in ascending order (change the order if needed)
+        return Integer.compare(other.label, this.label);
+    }
+
   /**
    * 
    * @param move the move's cell to search for
@@ -90,7 +96,7 @@ public class TreeNode {
   /**
    * DISCLAIMER: every <code>TreeNode</code> cointains the cell that has already
    * been played, so this method returns the player that has to make a move. e.g.
-   * <code>this.cell.state</code> -> P1, but this method will return P2, who has to
+   * <code>this.cell.state -> P1, but this method will return P2, who has to
    * make a move from this node
    * 
    * @return player who has to play next
