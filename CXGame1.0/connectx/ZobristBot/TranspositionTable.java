@@ -1,4 +1,5 @@
 package connectx.ZobristBot;
+
 import java.util.HashMap;
 
 public class TranspositionTable {

@@ -126,7 +126,7 @@ public class ZobristBot implements CXPlayer {
 			IterativeDeepening(root, M * N - B.numOfMarkedCells());
 
 			// compute_average();
-			Debug.printChildren(root);
+			// Debug.printChildren(root);
 			return bestMove.getCell().j;
 
 		} catch (TimeoutException e) {
@@ -136,7 +136,7 @@ public class ZobristBot implements CXPlayer {
 				return bestMove.getCell().j;
 			} else {
 				// compute_average();
-				Debug.printChildren(root);
+				// Debug.printChildren(root);
 				return bestMove.getCell().j;
 			}
 		}
@@ -207,7 +207,7 @@ public class ZobristBot implements CXPlayer {
 			}
 			// aggiorno bestMove solo dopo una completa ricerca a profondità d
 			bestMove = bestMove_yet;
-			System.err.println("depth: " + d);
+			// System.err.println("depth: " + d);
 		}
 	}
 

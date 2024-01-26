@@ -6,7 +6,7 @@ import connectx.CXCellState;
 /**
  * Nodo del game tree
  */
-public class TreeNode implements Comparable<TreeNode>{
+public class TreeNode implements Comparable<TreeNode> {
   /** cella della mossa giocata in questo nodo */
   private CXCell cell;
   /** etichetta della mossa calcolata dalla visita con AlphaBeta */
@@ -65,10 +65,10 @@ public class TreeNode implements Comparable<TreeNode>{
   }
 
   @Override
-    public int compareTo(TreeNode other) {
-        // Compare by value in ascending order (change the order if needed)
-        return Integer.compare(other.label, this.label);
-    }
+  public int compareTo(TreeNode other) {
+    // Compare by value in ascending order (change the order if needed)
+    return Integer.compare(other.label, this.label);
+  }
 
   /**
    * 

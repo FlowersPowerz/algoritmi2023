@@ -44,7 +44,7 @@
             "name": "BirbaVSZobrist",
             "request": "launch",
             "mainClass": "connectx.CXPlayerTester",
-            "args": "25 25 10 connectx.BirbaBot.BirbaBot connectx.ZobristBot.ZobristBot -v -t 10 -r 1",
+            "args": "6 7 4 connectx.BirbaBot.BirbaBot connectx.ZobristBot.ZobristBot -v -t 10 -r 1",
             "projectName": "algoritmi2023_ce710633"
         },
         {
