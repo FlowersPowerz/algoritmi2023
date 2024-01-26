@@ -243,8 +243,6 @@ public class BirbaBot implements CXPlayer {
 		// siamo in una configurazione finale oppure la visita in profondità è finita
 		if (T.isLeaf() || depth == 0) {
 			T.label = evaluate(T);
-			// Add entry to transposition table
-			// transpositionTable.insert(currentHash, new TranspositionEntry(T.label, depth, EntryType.EXACT));
 			return T.label;
 		}
 
@@ -419,6 +417,7 @@ public class BirbaBot implements CXPlayer {
 				makeMove(col);
 				if (Board.gameState() == (player == me ? yourWin : myWin)) {
 					add_move = false;
+					// return_moves[index] = new LabeledMove(LOSS, move);
 				}
 				undoMove();
 			}
