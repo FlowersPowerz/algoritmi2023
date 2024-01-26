@@ -243,8 +243,6 @@ public class BirbaBot implements CXPlayer {
 		// siamo in una configurazione finale oppure la visita in profondità è finita
 		if (T.isLeaf() || depth == 0) {
 			T.label = evaluate(T);
-			// Add entry to transposition table
-			// transpositionTable.insert(currentHash, new TranspositionEntry(T.label, depth, EntryType.EXACT));
 			return T.label;
 		}
 
@@ -386,7 +384,6 @@ public class BirbaBot implements CXPlayer {
 	private LabeledMove[] possibleNonLosingMoves(Integer[] AM, CXCellState player) throws TimeoutException {
 
 		CXCell block = null;
-		int underMoves = 0;
 		int blockMoves = 0;
 		// LabeledMove[] return_moves = new LabeledMove[AM.length];
 		LinkedList<LabeledMove> worth_moves = new LinkedList<>();
@@ -411,7 +408,7 @@ public class BirbaBot implements CXPlayer {
 				add_move = false;
 				block = move;
 				blockMoves++;
-				// worth_moves.add(new LabeledMove(BLOCK_OPP, move));
+				worth_moves.add(new LabeledMove(BLOCK_OPP, move));
 			}
 
 			// We should never play under opponent winning positions.
@@ -420,7 +417,6 @@ public class BirbaBot implements CXPlayer {
 				makeMove(col);
 				if (Board.gameState() == (player == me ? yourWin : myWin)) {
 					add_move = false;
-					underMoves++;
 					// return_moves[index] = new LabeledMove(LOSS, move);
 				}
 				undoMove();
@@ -435,7 +431,7 @@ public class BirbaBot implements CXPlayer {
 			undoMove();
 		}
 
-		if (blockMoves > 1 || underMoves > 1) {
+		if (blockMoves > 1 || worth_moves.size() == 0) {
 			return new LabeledMove[0]; // { new LabeledMove(LOSS, block) };
 		}
 

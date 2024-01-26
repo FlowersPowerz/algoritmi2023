@@ -268,7 +268,7 @@ public class ZobristBot implements CXPlayer {
 		if (T.isLeaf() || depth == 0) {
 			T.label = evaluate(T);
 			// Add entry to transposition table
-			transpositionTable.insert(currentHash, new TranspositionEntry(T.label, depth, EntryType.EXACT));
+			// transpositionTable.insert(currentHash, new TranspositionEntry(T.label, depth, EntryType.EXACT));
 			return T.label;
 		}
 
@@ -321,7 +321,7 @@ public class ZobristBot implements CXPlayer {
 		}
 		// After evaluating children and determining the best move
 		TranspositionEntry newEntry;
-		// [-10; 5] eval = 2
+		// [10; 25] eval = 5
 		if (eval <= alpha) {
 			newEntry = new TranspositionEntry(eval, depth, EntryType.UPPERBOUND);
 		} else if (eval >= beta) {
@@ -395,8 +395,8 @@ public class ZobristBot implements CXPlayer {
 				}
 			}
 			// mosse in ordine decrescente
-			Arrays.sort(moves, LabeledMove::compareTo); // 445500.0 media nodi
-			// LabeledMove.radixSort(moves, moves.length); // 435870.0 media nodi
+			// Arrays.sort(moves, LabeledMove::compareTo); // 445500.0 media nodi
+			LabeledMove.radixSort(moves, moves.length); // 435870.0 media nodi
 			T.updateMoves(moves);
 		} else {
 			System.err.println("GenerateMoveList has been called after game ended");
