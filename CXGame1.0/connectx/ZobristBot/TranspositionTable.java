@@ -4,9 +4,10 @@ import java.util.HashMap;
 
 public class TranspositionTable {
     private HashMap<Long, TranspositionEntry> table;
+    private final int size = 1000000;
 
     public TranspositionTable() {
-        this.table = new HashMap<>();
+        this.table = new HashMap<>(size);
     }
 
     public TranspositionEntry search(long key) {
@@ -19,5 +20,9 @@ public class TranspositionTable {
 
     public void delete(long key) {
         table.remove(key);
+    }
+
+    public int getSize() {
+        return table.size();
     }
 }

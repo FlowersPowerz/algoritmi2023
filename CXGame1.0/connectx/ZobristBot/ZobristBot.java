@@ -13,7 +13,10 @@ import java.util.concurrent.TimeoutException;
  * Our Player
  */
 public class ZobristBot implements CXPlayer {
-	/**  TODO: aggiungere punteggio euristica move ordering a {@link #EvaluateConfiguration()} */
+	/**
+	 * TODO: aggiungere punteggio euristica move ordering a
+	 * {@link #EvaluateConfiguration()}
+	 */
 
 	// constants for the Euristics
 	public static final int WIN = 100000;
@@ -233,6 +236,13 @@ public class ZobristBot implements CXPlayer {
 		TreeNode[] children = T.getChildren();
 		TranspositionEntry entry = transpositionTable.search(currentHash);
 
+		if (moves.length == 0) {
+			if (player == me)
+				return -WIN + Board.numOfMarkedCells();
+			else
+				return WIN - Board.numOfMarkedCells();
+		}
+
 		// Check transposition table
 		if (entry != null && entry.getDepth() >= depth) {
 			// Use the stored bounds to potentially prune the search
@@ -250,27 +260,27 @@ public class ZobristBot implements CXPlayer {
 			}
 		}
 
-		if (moves.length == 0) {
-			if (player == me)
-				return -WIN + Board.numOfMarkedCells();
-			else
-				return WIN - Board.numOfMarkedCells();
-		}
-
-		if (moves.length == 1 && moves[0].getValue() == WIN) {
-			if (player == me)
-				return WIN - Board.numOfMarkedCells();
-			else
-				return -WIN + Board.numOfMarkedCells();
-		}
-
 		// siamo in una configurazione finale oppure la visita in profondità è finita
 		if (T.isLeaf() || depth == 0) {
 			T.label = evaluate(T);
+		
+			// Create a new entry
+			TranspositionEntry newEntry;
+			
+			if (T.label <= alpha) {
+				newEntry = new TranspositionEntry(T.label, depth, EntryType.UPPERBOUND);
+			} else if (T.label >= beta) {
+				newEntry = new TranspositionEntry(T.label, depth, EntryType.LOWERBOUND);
+			} else {
+				// alpha <= eval <= beta
+				newEntry = new TranspositionEntry(T.label, depth, EntryType.EXACT);
+			}
+		
 			// Add entry to transposition table
-			// transpositionTable.insert(currentHash, new TranspositionEntry(T.label, depth, EntryType.EXACT));
+			transpositionTable.insert(currentHash, newEntry);
+		
 			return T.label;
-		}
+		}		
 
 		int eval, index = 0;
 		// Our player is maximizing
@@ -425,9 +435,9 @@ public class ZobristBot implements CXPlayer {
 
 		CXCell block = null;
 		int blockMoves = 0;
-		// LabeledMove[] return_moves = new LabeledMove[AM.length];
-		// int index = 0;
-		LinkedList<LabeledMove> worth_moves = new LinkedList<>();
+		LabeledMove[] return_moves = new LabeledMove[AM.length];
+		int index = 0;
+		// LinkedList<LabeledMove> worth_moves = new LinkedList<>();
 
 		for (Integer col : AM) {
 			boolean add_move = true;
@@ -442,6 +452,7 @@ public class ZobristBot implements CXPlayer {
 				return new LabeledMove[] { new LabeledMove(WIN, move) };
 			}
 			checktime();
+
 			// We should always play a column on which the opponent has a winning position
 			// in the bottom of the column.
 			int oppEval = util.evaluateColumn(stateBoard, move, player == me ? opponent : me);
@@ -449,8 +460,8 @@ public class ZobristBot implements CXPlayer {
 				add_move = false;
 				block = move;
 				blockMoves++;
-				worth_moves.add(new LabeledMove(BLOCK_OPP, move));
-				// return_moves[index] = new LabeledMove(BLOCK_OPP, move);
+				// worth_moves.add(new LabeledMove(BLOCK_OPP, move));
+				return_moves[index] = new LabeledMove(BLOCK_OPP, move);
 			}
 
 			// We should never play under opponent winning positions.
@@ -459,7 +470,7 @@ public class ZobristBot implements CXPlayer {
 				makeMove(col);
 				if (Board.gameState() == (player == me ? yourWin : myWin)) {
 					add_move = false;
-					// return_moves[index] = new LabeledMove(LOSS, move);
+					return_moves[index] = new LabeledMove(LOSS, move);
 				}
 				undoMove();
 			}
@@ -467,14 +478,15 @@ public class ZobristBot implements CXPlayer {
 			// after all the checks, just add move to the list
 			if (add_move) {
 				// helpfulness is sum of both POVs
-				worth_moves.add(new LabeledMove(myEval + oppEval, move));
-				// return_moves[index] = new LabeledMove(myEval + oppEval, move);
+				// worth_moves.add(new LabeledMove(myEval + oppEval, move));
+				return_moves[index] = new LabeledMove(myEval + oppEval, move);
 			}
 
 			undoMove();
+			index++;
 		}
 
-		if (blockMoves > 1 || worth_moves.size() == 0) {
+		if (blockMoves > 1) { // || worth_moves.size() == 0) {
 			return new LabeledMove[0]; // { new LabeledMove(LOSS, block) };
 		}
 
@@ -482,8 +494,8 @@ public class ZobristBot implements CXPlayer {
 			return new LabeledMove[] { new LabeledMove(BLOCK_OPP, block) };
 		}
 
-		LabeledMove[] return_moves = new LabeledMove[worth_moves.size()];
-		worth_moves.toArray(return_moves);
+		// LabeledMove[] return_moves = new LabeledMove[worth_moves.size()];
+		// worth_moves.toArray(return_moves);
 		return return_moves;
 	}
 
