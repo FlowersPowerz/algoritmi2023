@@ -277,19 +277,19 @@ public class ZobristBot implements CXPlayer {
 			T.label = evaluate(T);
 		
 			// Create a new entry
-			TranspositionEntry newEntry;
+			// TranspositionEntry newEntry;
 			
-			if (T.label <= alpha) {
-				newEntry = new TranspositionEntry(T.label, depth, EntryType.UPPERBOUND);
-			} else if (T.label >= beta) {
-				newEntry = new TranspositionEntry(T.label, depth, EntryType.LOWERBOUND);
-			} else {
-				// alpha <= eval <= beta
-				newEntry = new TranspositionEntry(T.label, depth, EntryType.EXACT);
-			}
+			// if (T.label <= alpha) {
+			// 	newEntry = new TranspositionEntry(T.label, depth, EntryType.UPPERBOUND);
+			// } else if (T.label >= beta) {
+			// 	newEntry = new TranspositionEntry(T.label, depth, EntryType.LOWERBOUND);
+			// } else {
+			// 	// alpha <= eval <= beta
+			// 	newEntry = new TranspositionEntry(T.label, depth, EntryType.EXACT);
+			// }
 		
-			// Add entry to transposition table
-			transpositionTable.insert(currentHash, newEntry);
+			// // Add entry to transposition table
+			// transpositionTable.insert(currentHash, newEntry);
 		
 			return T.label;
 		}		
