@@ -45,7 +45,7 @@ public class BirbaBot implements CXPlayer {
 		this.N = N;
 		this.X = X;
 
-		Board = new CXBoard(M, N, X);
+		Board = new CXBoard(this.M, this.N, this.X);
 		stateBoard = new CXCellState[M][N];
 
 		TIMEOUT = timeout_in_secs;
@@ -56,7 +56,7 @@ public class BirbaBot implements CXPlayer {
 		opponent = first ? CXCellState.P2 : CXCellState.P1;
 		meInt = first ? 0 : 1;
 
-		util = new Evaluate(M, N, X);
+		util = new Evaluate(this.M, this.N, this.X);
 
 		bestMove = null;
 		root = null;
