@@ -25,4 +25,8 @@ public class TranspositionTable {
     public int getSize() {
         return table.size();
     }
+
+    public void clear() {
+        table.clear();
+    }
 }

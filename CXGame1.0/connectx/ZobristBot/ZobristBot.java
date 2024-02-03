@@ -34,9 +34,9 @@ public class ZobristBot implements CXPlayer {
 	private CXGameState myWin, yourWin;
 	private int meInt;
 	// Transposition table variables
-	ZobristTable zobristTable;
-	TranspositionTable transpositionTable;
-	long currentHash;
+	// ZobristTable zobristTable;
+	// TranspositionTable transpositionTable;
+	// long currentHash;
 
 	/**
 	 * the best move found and the end of iterative deepening
@@ -73,9 +73,9 @@ public class ZobristBot implements CXPlayer {
 		opponent = first ? CXCellState.P2 : CXCellState.P1;
 		meInt = first ? 0 : 1;
 
-		zobristTable = new ZobristTable(M, N);
-		transpositionTable = new TranspositionTable();
-		currentHash = 0;
+		// zobristTable = new ZobristTable(M, N);
+		// transpositionTable = new TranspositionTable();
+		// currentHash = 0;
 
 		util = new Evaluate(M, N, X);
 		bestMove = null;
@@ -96,7 +96,8 @@ public class ZobristBot implements CXPlayer {
 		// update our Board and stateBoard
 		Board = B.copy();
 		stateBoard = B.getBoard();
-		currentHash = zobristTable.hash(stateBoard);
+		// transpositionTable.clear();
+		// currentHash = zobristTable.hash(stateBoard);
 
 		try {
 			// not the first turn
@@ -168,6 +169,17 @@ public class ZobristBot implements CXPlayer {
 			// generate or get already generated move list
 			LabeledMove[] moves = T.getMoves();
 			TreeNode[] children = T.getChildren();
+			// TranspositionEntry entry = transpositionTable.search(currentHash);
+
+			// // Check transposition table
+			// if (entry != null && entry.getDepth() >= d) {
+			// 	// Use the stored bounds to potentially prune the search
+			// 	if (entry.getType() == EntryType.LOWERBOUND) {
+			// 		alpha = Math.max(alpha, entry.getEval());
+			// 	} else if (entry.getType() == EntryType.UPPERBOUND) {
+			// 		beta = Math.min(beta, entry.getEval());
+			// 	}
+			// }
 
 			// we lost
 			if (moves.length == 0) {
@@ -234,7 +246,7 @@ public class ZobristBot implements CXPlayer {
 		// generate or get already generated move list
 		LabeledMove[] moves = T.getMoves();
 		TreeNode[] children = T.getChildren();
-		TranspositionEntry entry = transpositionTable.search(currentHash);
+		// TranspositionEntry entry = transpositionTable.search(currentHash);
 
 		if (moves.length == 0) {
 			if (player == me)
@@ -244,21 +256,21 @@ public class ZobristBot implements CXPlayer {
 		}
 
 		// Check transposition table
-		if (entry != null && entry.getDepth() >= depth) {
-			// Use the stored bounds to potentially prune the search
-			if (entry.getType() == EntryType.EXACT) {
-				return entry.getEval();
-			} else if (entry.getType() == EntryType.LOWERBOUND) {
-				alpha = Math.max(alpha, entry.getEval());
-			} else if (entry.getType() == EntryType.UPPERBOUND) {
-				beta = Math.min(beta, entry.getEval());
-			}
+		// if (entry != null && entry.getDepth() >= depth) {
+		// 	// Use the stored bounds to potentially prune the search
+		// 	if (entry.getType() == EntryType.EXACT) {
+		// 		return entry.getEval();
+		// 	} else if (entry.getType() == EntryType.LOWERBOUND) {
+		// 		alpha = Math.max(alpha, entry.getEval());
+		// 	} else if (entry.getType() == EntryType.UPPERBOUND) {
+		// 		beta = Math.min(beta, entry.getEval());
+		// 	}
 
-			if (beta <= alpha) {
-				// Prune the search
-				return entry.getEval();
-			}
-		}
+		// 	if (beta <= alpha) {
+		// 		// Prune the search
+		// 		return entry.getEval();
+		// 	}
+		// }
 
 		// siamo in una configurazione finale oppure la visita in profondità è finita
 		if (T.isLeaf() || depth == 0) {
@@ -329,20 +341,20 @@ public class ZobristBot implements CXPlayer {
 				}
 			}
 		}
-		// After evaluating children and determining the best move
-		TranspositionEntry newEntry;
-		// [10; 25] eval = 5
-		if (eval <= alpha) {
-			newEntry = new TranspositionEntry(eval, depth, EntryType.UPPERBOUND);
-		} else if (eval >= beta) {
-			newEntry = new TranspositionEntry(eval, depth, EntryType.LOWERBOUND);
-		} else {
-			// alpha <= eval <= beta
-			newEntry = new TranspositionEntry(eval, depth, EntryType.EXACT);
-		}
+		// // After evaluating children and determining the best move
+		// TranspositionEntry newEntry;
+		// // [10; 25] eval = 5
+		// if (eval <= alpha) {
+		// 	newEntry = new TranspositionEntry(eval, depth, EntryType.UPPERBOUND);
+		// } else if (eval >= beta) {
+		// 	newEntry = new TranspositionEntry(eval, depth, EntryType.LOWERBOUND);
+		// } else {
+		// 	// alpha <= eval <= beta
+		// 	newEntry = new TranspositionEntry(eval, depth, EntryType.EXACT);
+		// }
 
-		// Add entry to transposition table
-		transpositionTable.insert(currentHash, newEntry);
+		// // Add entry to transposition table
+		// transpositionTable.insert(currentHash, newEntry);
 
 		T.label = eval;
 		return eval;
@@ -405,8 +417,8 @@ public class ZobristBot implements CXPlayer {
 				}
 			}
 			// mosse in ordine decrescente
-			// Arrays.sort(moves, LabeledMove::compareTo); // 445500.0 media nodi
-			LabeledMove.radixSort(moves, moves.length); // 435870.0 media nodi
+			Arrays.sort(moves, LabeledMove::compareTo); // 445500.0 media nodi
+			// LabeledMove.radixSort(moves, moves.length); // 435870.0 media nodi
 			T.updateMoves(moves);
 		} else {
 			System.err.println("GenerateMoveList has been called after game ended");
@@ -559,14 +571,14 @@ public class ZobristBot implements CXPlayer {
 	private CXCell makeMove(int col) {
 		Board.markColumn(col);
 		CXCell move = Board.getLastMove();
-		currentHash = zobristTable.updateHash(currentHash, stateBoard, move, false);
+		// currentHash = zobristTable.updateHash(currentHash, stateBoard, move, false);
 		stateBoard[move.i][move.j] = move.state;
 		return move;
 	}
 
 	private void undoMove() {
 		CXCell move = Board.getLastMove();
-		currentHash = zobristTable.updateHash(currentHash, stateBoard, move, true);
+		// currentHash = zobristTable.updateHash(currentHash, stateBoard, move, true);
 		stateBoard[move.i][move.j] = CXCellState.FREE;
 		Board.unmarkColumn();
 	}

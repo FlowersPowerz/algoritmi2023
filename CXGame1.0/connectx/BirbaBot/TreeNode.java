@@ -4,98 +4,104 @@ import connectx.CXCell;
 import connectx.CXCellState;
 
 /**
- * Nodo del game tree
+ * Game tree node
  */
 public class TreeNode {
-  /** cella della mossa giocata in questo nodo */
-  private CXCell cell;
-  /** etichetta della mossa calcolata dalla visita con AlphaBeta */
-  public int label;
-  /** è una foglia del game tree? */
-  private boolean leaf;
-  /** array ordinato delle possibili mosse giocabili al prossimo turno */
-  private LabeledMove[] moves;
-  /** lista effettiva dei nodi figli del nodo corrente nel game tree */
-  private TreeNode[] children;
-  private int index;
+	/** cell played in this node */
+	private CXCell cell;
+	/** label computed by AlphaBeta */
+	public int label;
+	/** is it a final configuration? */
+	private boolean leaf;
+	/** array of playable non-losing moves in descending order */
+	private LabeledMove[] moves;
+	/**
+	 * children array: used to skip euristics computations when visiting an already
+	 * generated game tree
+	 */
+	private TreeNode[] children;
+	/** index of the next child to add to children array */
+	private int index;
 
-  public TreeNode(CXCell cell) {
-    this.label = 0;
-    this.cell = cell;
-    this.leaf = false;
-    this.moves = new LabeledMove[0];
-    this.children = new TreeNode[0];
-    this.index = 0;
-  }
+	public TreeNode(CXCell cell) {
+		this.label = 0;
+		this.cell = cell;
+		this.leaf = false;
+		this.moves = new LabeledMove[0];
+		this.children = new TreeNode[0];
+		this.index = 0;
+	}
 
-  public void addChild(TreeNode child) {
-    if (index < 0 || index > moves.length - 1) {
-      System.err.println("index: " + index);
-      throw new RuntimeException("Invalid index value");
-    }
-    if (children.length == 0) {
-      children = new TreeNode[moves.length];
-    }
-    children[index] = child;
-    index++;
-  }
+	public void addChild(TreeNode child) {
+		if (index < 0 || index > moves.length - 1) {
+			System.err.println("Invalid index value: " + index);
+		}
+		if (children.length == 0) {
+			children = new TreeNode[moves.length];
+		}
+		children[index] = child;
+		index++;
+	}
 
-  public int getMovesnumber() {
-    return moves.length;
-  }
+	public int getMovesnumber() {
+		return moves.length;
+	}
 
-  public void updateMoves(LabeledMove[] sortedMoves) {
-    this.moves = sortedMoves;
-  }
+	public void updateMoves(LabeledMove[] sortedMoves) {
+		this.moves = sortedMoves;
+	}
 
-  public LabeledMove[] getMoves() {
-    return moves;
-  }
+	public LabeledMove[] getMoves() {
+		return moves;
+	}
 
-  public void updateLeaf() {
-    this.leaf = true;
-  }
+	public void updateLeaf() {
+		this.leaf = true;
+	}
 
-  public CXCell getCell() {
-    return cell;
-  }
+	public CXCell getCell() {
+		return cell;
+	}
 
-  public boolean isLeaf() {
-    return this.leaf;
-  }
+	public boolean isLeaf() {
+		return this.leaf;
+	}
 
-  /**
-   * 
-   * @param move the move's cell to search for
-   * @return the child of the node containing <code> cell </code>'s move, if it
-   *         exists
-   */
-  public TreeNode getChildByCell(CXCell move) {
-    if (this.children.length == 0)
-      return null;
+	/**
+	 * 
+	 * @param move the move's cell to search for
+	 * @return the child of the node containing <code> cell </code>'s move, if it
+	 *         exists
+	 */
+	public TreeNode getChildByCell(CXCell move) {
+		if (this.children.length == 0)
+			return null;
 
-    for (TreeNode n : this.children) {
-      // we found the move in one of the children
-      if (n.getCell().i == move.i && n.getCell().j == move.j) {
-        return n;
-      }
-    }
-    return null;
-  }
+		for (TreeNode n : this.children) {
+			if (n == null)
+				break;
+			// we found the move in one of the children
+			if (n.getCell().i == move.i && n.getCell().j == move.j) {
+				return n;
+			}
+		}
+		return null;
+	}
 
-  public TreeNode[] getChildren() {
-    return children;
-  }
+	public TreeNode[] getChildren() {
+		return children;
+	}
 
-  /**
-   * DISCLAIMER: every <code>TreeNode</code> cointains the cell that has already
-   * been played, so this method returns the player that has to make a move. e.g.
-   * <code>this.cell.state</code> -> P1, but this method will return P2, who has to
-   * make a move from this node
-   * 
-   * @return player who has to play next
-   */
-  public CXCellState getCurrentPlayer() {
-    return this.cell.state == CXCellState.P1 ? CXCellState.P2 : CXCellState.P1;
-  }
+	/**
+	 * DISCLAIMER: every <code>TreeNode</code> cointains the cell that has already
+	 * been played, so this method returns the player that has to make a move. e.g.
+	 * <code>this.cell.state</code> -> P1, but this method will return P2, who has
+	 * to
+	 * make a move from this node
+	 * 
+	 * @return player who has to play next
+	 */
+	public CXCellState getCurrentPlayer() {
+		return this.cell.state == CXCellState.P1 ? CXCellState.P2 : CXCellState.P1;
+	}
 }
