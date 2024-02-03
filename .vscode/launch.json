@@ -33,10 +33,10 @@
         },
         {
             "type": "java",
-            "name": "ZobristVSZobrist",
+            "name": "BirbaVSBirba",
             "request": "launch",
             "mainClass": "connectx.CXPlayerTester",
-            "args": "6 7 4 connectx.ZobristBot.ZobristBot connectx.ZobristBot.ZobristBot -v -t 10 -r 10",
+            "args": "100 100 30 connectx.BirbaBot.BirbaBot connectx.BirbaBot.BirbaBot -v -t 1 -r 5",
             "projectName": "algoritmi2023_ce710633"
         },
         {
@@ -44,7 +44,7 @@
             "name": "BirbaVSZobrist",
             "request": "launch",
             "mainClass": "connectx.CXPlayerTester",
-            "args": "6 7 4 connectx.BirbaBot.BirbaBot connectx.ZobristBot.ZobristBot -v -t 10 -r 1",
+            "args": "100 100 30 connectx.BirbaBot.BirbaBot connectx.ZobristBot.ZobristBot -v -t 1 -r 10",
             "projectName": "algoritmi2023_ce710633"
         },
         {
@@ -52,7 +52,7 @@
             "name": "ZobristVSBirba",
             "request": "launch",
             "mainClass": "connectx.CXPlayerTester",
-            "args": "6 7 4 connectx.ZobristBot.ZobristBot connectx.BirbaBot.BirbaBot -v -t 10 -r 1",
+            "args": "100 100 30 connectx.ZobristBot.ZobristBot connectx.BirbaBot.BirbaBot -v -t 10 -r 3",
             "projectName": "algoritmi2023_ce710633"
         }
     ]

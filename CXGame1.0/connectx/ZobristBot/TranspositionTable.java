@@ -20,4 +20,8 @@ public class TranspositionTable {
     public void delete(long key) {
         table.remove(key);
     }
+
+    public void clear() {
+        table.clear();
+    }
 }

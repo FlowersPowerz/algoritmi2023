@@ -1,33 +1,21 @@
 package connectx.BirbaBot;
 
-import connectx.CXPlayer;
-import connectx.CXBoard;
-import connectx.CXCell;
-import connectx.CXCellState;
-import connectx.CXGameState;
+import connectx.*;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.concurrent.TimeoutException;
-
-// TODO: conteggio nodi già visitati
 
 /**
  * Our Player
  */
 public class BirbaBot implements CXPlayer {
-	/*
-	 * [.] Transposition Table con le mosse già computate nei turni precedenti in
-	 * modo da non visitare ogni volta un nuovo Game Tree
-	 */
-
 	// constants for the Euristics
 	public static final int WIN = 100000;
-	public final int LOSS = 0;
 	private final int BLOCK_OPP = WIN - 1;
 	// variables for initPlayer()
 	private int TIMEOUT;
 	private long START;
-	private int M, N, X; // M righe, N colonne, X allineamenti
+	private int M, N, X; // M rows, N columns, X alignments
 	// our copies of the game board
 	private CXBoard Board;
 	private CXCellState[][] stateBoard;
@@ -35,6 +23,8 @@ public class BirbaBot implements CXPlayer {
 	private CXCellState me, opponent;
 	private CXGameState myWin, yourWin;
 	private int meInt;
+	// Utility variables
+	private Evaluate util;
 
 	/**
 	 * the best move found and the end of iterative deepening
@@ -44,17 +34,12 @@ public class BirbaBot implements CXPlayer {
 	 * root of the game tree, it's always on opponent's node
 	 */
 	private TreeNode root;
-	// Utility variables
-	private Evaluate util;
-	private int nodeCount;
-	private int old_nodeCount;
-	private int turns;
-	private float media;
 
 	/* Default empty constructor */
 	public BirbaBot() {
 	}
 
+	/** Initialize the player */
 	public void initPlayer(int M, int N, int X, boolean first, int timeout_in_secs) {
 		this.M = M;
 		this.N = N;
@@ -72,19 +57,14 @@ public class BirbaBot implements CXPlayer {
 		meInt = first ? 0 : 1;
 
 		util = new Evaluate(M, N, X);
+
 		bestMove = null;
-		nodeCount = 0;
-		old_nodeCount = 0;
-		turns = 0;
-		media = 0;
 		root = null;
 	}
 
 	/* Selects the best move possible */
 	public int selectColumn(CXBoard B) {
 		START = System.currentTimeMillis(); // Save starting time
-		nodeCount = 0;
-		turns++;
 		// look at last opponent move
 		CXCell lastOppMove = B.getLastMove();
 		// update our Board and stateBoard
@@ -94,7 +74,7 @@ public class BirbaBot implements CXPlayer {
 		try {
 			// not the first turn
 			if (bestMove != null && lastOppMove != null) {
-				// prendo il sottoalbero radicato nell'ultima mossa dell'avversario
+				// take the subtree rooted in opponent's move
 				TreeNode chilNode = bestMove.getChildByCell(lastOppMove);
 				if (chilNode != null) {
 					root = chilNode;
@@ -119,20 +99,16 @@ public class BirbaBot implements CXPlayer {
 
 			bestMove = null;
 			// start iterative deepening
-			IterativeDeepening(root, M * N - B.numOfMarkedCells());
+			IterativeDeepening(root, B.numOfFreeCells());
 
-			// compute_average();
 			return bestMove.getCell().j;
 
 		} catch (TimeoutException e) {
+			// we couldn't complete the visit at shallow depth, should be a useless check
 			if (bestMove == null) {
-				// compute_average();
 				bestMove = new TreeNode(root.getMoves()[0].getCell());
-				return bestMove.getCell().j;
-			} else {
-				// compute_average();
-				return bestMove.getCell().j;
 			}
+			return bestMove.getCell().j;
 		}
 	}
 
@@ -143,15 +119,13 @@ public class BirbaBot implements CXPlayer {
 	 * updates <code>bestMove</code> only when all nodes of the same depth are
 	 * visited
 	 * 
-	 * @param T      root node of the game tree
-	 * @param player player who's allowed to move
-	 * @param depth  depth of search
+	 * @param T     root node of the game tree
+	 * @param depth maximum depth of search
 	 */
 	private void IterativeDeepening(TreeNode T, int depth) throws TimeoutException {
 		// we start from depth 1, just below the root
 		for (int d = 1; d <= depth; d++) {
 			checktime();
-			nodeCount++;
 
 			int alpha = -Integer.MAX_VALUE; // alpha = -oo
 			int beta = Integer.MAX_VALUE; // beta = +oo
@@ -162,14 +136,12 @@ public class BirbaBot implements CXPlayer {
 
 			// we lost
 			if (moves.length == 0) {
-				Debug.printTable(stateBoard);
-				System.err.println("We lost");
 				bestMove = new TreeNode(makeMove(Board.getAvailableColumns()[0]));
 				break;
 			}
 
+			// play the only column left
 			if (moves.length == 1) {
-				// play the only move left
 				bestMove = new TreeNode(makeMove(moves[0].getMove()));
 				break;
 			}
@@ -177,10 +149,10 @@ public class BirbaBot implements CXPlayer {
 			int eval = alpha, index = 0;
 			int bestMoveValue = alpha;
 			TreeNode bestMove_yet = null; // migliore mossa trovata con alphabeta fin'ora
+
 			for (LabeledMove i : moves) { // foreach move in T.Moves
-				checktime();
 				CXCell cell = makeMove(i.getMove());
-				// gets already visited node or adds new child and generate its moves
+				// gets already visited node or adds new child and generates its moves
 				TreeNode child = getOrCreateChild(T, children, cell, index);
 
 				eval = Math.max(eval, AlphaBeta(child, opponent, alpha, beta, d - 1));
@@ -188,7 +160,7 @@ public class BirbaBot implements CXPlayer {
 
 				undoMove();
 				index++;
-
+				// updates bestMove_yet only when we find a truly better move
 				if (eval > bestMoveValue) {
 					bestMove_yet = child;
 					bestMoveValue = eval;
@@ -199,9 +171,8 @@ public class BirbaBot implements CXPlayer {
 					break;
 				}
 			}
-			// aggiorno bestMove solo dopo una completa ricerca a profondità d
+			// update bestMove only after a complete search at depth d
 			bestMove = bestMove_yet;
-			// System.err.println("depth: " + d);
 		}
 	}
 
@@ -217,15 +188,16 @@ public class BirbaBot implements CXPlayer {
 	 * @param alpha
 	 * @param beta
 	 * @param depth  remaining depth of the search
-	 * @return the evaluated label of <code>T</code>
+	 * @return the label of <code>T</code>
 	 */
 	private int AlphaBeta(TreeNode T, CXCellState player, int alpha, int beta, int depth) throws TimeoutException {
-		nodeCount++;
+		checktime();
 
-		// generate or get already generated move list
+		// get moves and children array
 		LabeledMove[] moves = T.getMoves();
 		TreeNode[] children = T.getChildren();
 
+		// losing configuration
 		if (moves.length == 0) {
 			if (player == me)
 				return -WIN + Board.numOfMarkedCells();
@@ -233,6 +205,7 @@ public class BirbaBot implements CXPlayer {
 				return WIN - Board.numOfMarkedCells();
 		}
 
+		// winning configuration
 		if (moves.length == 1 && moves[0].getValue() == WIN) {
 			if (player == me)
 				return WIN - Board.numOfMarkedCells();
@@ -240,7 +213,7 @@ public class BirbaBot implements CXPlayer {
 				return -WIN + Board.numOfMarkedCells();
 		}
 
-		// siamo in una configurazione finale oppure la visita in profondità è finita
+		// we are in a leaf node or a non-final configuration
 		if (T.isLeaf() || depth == 0) {
 			T.label = evaluate(T);
 			return T.label;
@@ -252,7 +225,6 @@ public class BirbaBot implements CXPlayer {
 			eval = -Integer.MAX_VALUE; // eval = -oo
 
 			for (LabeledMove i : moves) { // foreach move in T.Moves
-				checktime();
 				CXCell cell = makeMove(i.getMove());
 				// gets already visited node or adds new child and generate its moves
 				TreeNode child = getOrCreateChild(T, children, cell, index);
@@ -275,7 +247,6 @@ public class BirbaBot implements CXPlayer {
 			eval = Integer.MAX_VALUE; // eval = +oo
 
 			for (LabeledMove i : moves) { // foreach move in T.Moves
-				checktime();
 				CXCell cell = makeMove(i.getMove());
 				// gets already visited node or adds new child and generate its moves
 				TreeNode child = getOrCreateChild(T, children, cell, index);
@@ -298,8 +269,20 @@ public class BirbaBot implements CXPlayer {
 		return eval;
 	}
 
+	/**
+	 * Gets already visited node or adds new child and generates its moves
+	 * 
+	 * @param T        node of which we want to get the child
+	 * @param children children array of <code>T</code> node
+	 * @param cell     child move
+	 * @param index    index to make sure we add the move in the children array
+	 *                 safely
+	 * @return child of <code>T</code> node
+	 * @throws TimeoutException
+	 */
 	TreeNode getOrCreateChild(TreeNode T, TreeNode[] children, CXCell cell, int index) throws TimeoutException {
 		TreeNode child;
+
 		if (children.length > 0) {
 			child = children[index];
 
@@ -328,12 +311,11 @@ public class BirbaBot implements CXPlayer {
 	}
 
 	/**
-	 * Genera le mosse possibili del nodo prima di entrare nel ciclo for di
-	 * {@link #AlphaBeta(TreeNode, CXCellState, int, int, int)}, ordinandole in
-	 * ordine decrescente di valore secondo l'euristica.
+	 * Generates and updates the non losing moves of <code>T</code> node in
+	 * descending order
 	 * 
-	 * @param T nodo il cui campo <code> T.Moves </code> deve essere
-	 *          inizializzato
+	 * @param T
+	 * @throws TimeoutException
 	 */
 	private void GenerateMoveList(TreeNode T) throws TimeoutException {
 		Integer[] AM = Board.getAvailableColumns();
@@ -344,7 +326,7 @@ public class BirbaBot implements CXPlayer {
 				T.updateMoves(moves);
 				return;
 			}
-			// classico swap
+			// classic swap
 			if (moves.length == 2) {
 				if (moves[0].getValue() < moves[1].getValue()) {
 					LabeledMove tmp = moves[0];
@@ -354,9 +336,8 @@ public class BirbaBot implements CXPlayer {
 					return;
 				}
 			}
-			// mosse in ordine decrescente
-			// Arrays.sort(moves, LabeledMove::compareTo); // 445500.0 media nodi
-			LabeledMove.radixSort(moves, moves.length); // 435870.0 media nodi
+			// moves in descending order; stable algorithm
+			Arrays.sort(moves, LabeledMove::compareTo);
 			T.updateMoves(moves);
 		} else {
 			System.err.println("GenerateMoveList has been called after game ended");
@@ -369,12 +350,13 @@ public class BirbaBot implements CXPlayer {
 	 * euristics to
 	 * every move possible, following this criteria:
 	 * 1) If the player can win in one move return an array containing only that
-	 * move,
-	 * valued <code>WIN</code>
-	 * 2) if the player places a stone under an opponent winning position, our move
-	 * is valued <code>LOSS</code>
+	 * move, valued <code>WIN</code>
+	 * 2) if the player places a stone under an opponent winning position, that move
+	 * is ignored
 	 * 3) if the player can block an opponent move (and we cannot win), our move is
 	 * valued <code>BLOCK_OPP</code>
+	 * 4) if the move doesn't fall in any of the other cases, label it with the
+	 * helpfulness
 	 * 
 	 * 
 	 * @param AM     array of available moves
@@ -385,22 +367,21 @@ public class BirbaBot implements CXPlayer {
 
 		CXCell block = null;
 		int blockMoves = 0;
-		// LabeledMove[] return_moves = new LabeledMove[AM.length];
 		LinkedList<LabeledMove> worth_moves = new LinkedList<>();
 
 		for (Integer col : AM) {
+			checktime();
 			boolean add_move = true;
 			// I need the bottom cell of the column col
 			CXCell move = makeMove(col);
 
-			checktime();
 			// It is better to win than to simply block the opponent
 			int myEval = util.evaluateColumn(stateBoard, move, player == me ? me : opponent);
 			if (myEval == WIN) {
 				undoMove();
 				return new LabeledMove[] { new LabeledMove(WIN, move) };
 			}
-			checktime();
+
 			// We should always play a column on which the opponent has a winning position
 			// in the bottom of the column.
 			int oppEval = util.evaluateColumn(stateBoard, move, player == me ? opponent : me);
@@ -417,7 +398,6 @@ public class BirbaBot implements CXPlayer {
 				makeMove(col);
 				if (Board.gameState() == (player == me ? yourWin : myWin)) {
 					add_move = false;
-					// return_moves[index] = new LabeledMove(LOSS, move);
 				}
 				undoMove();
 			}
@@ -429,15 +409,16 @@ public class BirbaBot implements CXPlayer {
 			}
 			undoMove();
 		}
-
+		// we found two or more opp winning moves, or we can only play on losing
+		// positions
 		if (blockMoves > 1 || worth_moves.size() == 0) {
-			return new LabeledMove[0]; // { new LabeledMove(LOSS, block) };
+			return new LabeledMove[0];
 		}
-
+		// we can block the opponent
 		if (block != null) {
 			return new LabeledMove[] { new LabeledMove(BLOCK_OPP, block) };
 		}
-		
+
 		LabeledMove[] return_moves = new LabeledMove[worth_moves.size()];
 		worth_moves.toArray(return_moves);
 		return return_moves;
@@ -449,8 +430,7 @@ public class BirbaBot implements CXPlayer {
 	 * <code>TreeNode</code>: be it a leaf
 	 * or a non-final move
 	 * 
-	 * @param T      game tree node
-	 * @param player current player
+	 * @param T game tree node
 	 * @return evaluation of the node
 	 */
 	private int evaluate(TreeNode T) throws TimeoutException {
@@ -478,7 +458,7 @@ public class BirbaBot implements CXPlayer {
 	 * 
 	 * @param T
 	 * @param player
-	 * @return
+	 * @return the euristics of the current configuration
 	 */
 	private int EvaluateConfiguration() throws TimeoutException {
 		int eval = 0;
@@ -493,11 +473,10 @@ public class BirbaBot implements CXPlayer {
 	}
 
 	/**
-	 * Makes the move on our <code>Board</code> and <code>stateBoard</code>
-	 * using the markcolumn() function provided by CXBoard
+	 * Make the move on our <code>Board</code> and <code>stateBoard</code>
+	 * using markcolumn() function provided by CXBoard
 	 * 
-	 * @param col
-	 * @param funzione
+	 * @param col column to play
 	 * @return the <code>CXCell</code> type cell of the move
 	 */
 	private CXCell makeMove(int col) {
@@ -507,24 +486,21 @@ public class BirbaBot implements CXPlayer {
 		return move;
 	}
 
+	/**
+	 * Undo the last move made on our <code>Board</code> and <code>stateBoard</code>
+	 */
 	private void undoMove() {
 		CXCell move = Board.getLastMove();
 		stateBoard[move.i][move.j] = CXCellState.FREE;
 		Board.unmarkColumn();
 	}
 
-	private void compute_average() {
-		old_nodeCount += nodeCount;
-		media = old_nodeCount / turns;
-		System.err.println("media: " + media);
-	}
-
 	/**
-	 * Throws a <code> RuntimeException </code> if we are at 99 percent of the
+	 * Throws a <code> TimeoutException </code> if we are at 95 percent of the
 	 * maximum timeout time
 	 */
 	private void checktime() throws TimeoutException {
-		if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (98.0 / 100.0))
+		if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (95.0 / 100.0))
 			throw new TimeoutException();
 	}
 
