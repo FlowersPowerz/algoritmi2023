@@ -1,6 +1,6 @@
 package connectx.BirbaBot;
 
-import static connectx.Birbabot.Birbabot.WIN;
+import static connectx.BirbaBot.BirbaBot.WIN;
 
 import connectx.CXCell;
 import connectx.CXCellState;
@@ -474,5 +474,5 @@ public class Evaluate {
 			}
 		}
 	}
-
+}
 
